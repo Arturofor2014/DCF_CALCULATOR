@@ -55,6 +55,7 @@ def load_defaults(project_name: str):
     wb = openpyxl.load_workbook(io.BytesIO(_download_xlsx()), data_only=True)
     ws = wb[project_name]
 
+    # Años desde fila 2 (acepta int o string)
     header = next(ws.iter_rows(min_row=2, max_row=2, values_only=True))
     years = []
     for v in header[2:]:
@@ -66,22 +67,27 @@ def load_defaults(project_name: str):
             pass
     n = len(years)
 
+    # Leer filas agrupadas por sección
     KNOWN = {"INFLOWS", "OUTFLOWS", "FINANCING"}
     sections = {"INFLOWS": [], "OUTFLOWS": [], "FINANCING": []}
     current = None
 
+    def _f(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
     for row in ws.iter_rows(min_row=3, values_only=True):
-        sec = str(row[0]).strip() if row[0] else ""
+        sec     = str(row[0]).strip() if row[0] else ""
         concept = str(row[1]).strip() if row[1] else ""
-        def _f(v):
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                return 0.0
-        vals = [_f(v) for v in row[2:2 + n]]
+
         if sec in KNOWN:
             current = sec
-        if current:
+            continue  # fila de cabecera de sección, no es dato
+
+        if current and concept:
+            vals = [_f(v) for v in row[2:2 + n]]
             sections[current].append((concept, vals))
 
     return sections, years
@@ -102,6 +108,7 @@ CONCEPT_WIDTH = 220
 def col_cfg(scols):
     cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH)}
     cfg.update({y: st.column_config.NumberColumn(y, format="$%,.0f", width="small") for y in scols})
+    cfg["TOTAL"] = st.column_config.NumberColumn("TOTAL", format="$%,.0f", width="small")
     return cfg
 
 def total_row_style(df, num_cols):
@@ -113,43 +120,54 @@ def total_row_style(df, num_cols):
 def render_section(title, key, section_data, scols, selected):
     st.markdown(f'<div class="section-hdr">{title}</div>', unsafe_allow_html=True)
 
-    labels = [r[0] for r in section_data]
-    n_rows = len(labels)
+    labels   = [r[0] for r in section_data]
+    n_rows   = len(labels)
+    vals_key = f"vals_{key}_{selected}"
 
-    data_matrix = []
-    for i in range(n_rows):
-        data_matrix.append(section_data[i][1])
+    # Inicializar con valores del sheet
+    if vals_key not in st.session_state or len(st.session_state[vals_key]) != n_rows:
+        st.session_state[vals_key] = [list(r[1]) for r in section_data]
 
-    df = pd.DataFrame(data_matrix, columns=scols)
+    # TOTAL por fila calculado desde session state
+    row_totals = [sum(v) for v in st.session_state[vals_key]]
+
+    df = pd.DataFrame(st.session_state[vals_key], columns=scols)
     df.insert(0, "Concepto", labels)
+    df["TOTAL"] = row_totals
 
     edited = st.data_editor(
         df,
         use_container_width=True,
         num_rows="fixed",
         key=f"editor_{key}_{selected}",
+        disabled=["TOTAL"],
         column_config=col_cfg(scols),
         hide_index=True,
     )
 
     edited[scols] = edited[scols].fillna(0).astype(float)
 
-    result = []
+    result   = []
+    new_vals = []
     for i in range(len(edited)):
-        concept = edited.iloc[i]["Concepto"]
-        vals = edited.iloc[i][scols].tolist()
+        concept = str(edited.iloc[i]["Concepto"] or f"Concepto {i+1}")
+        vals    = edited.iloc[i][scols].tolist()
         result.append((concept, vals))
+        new_vals.append(vals)
 
-    col_sums = edited[scols].sum()
+    # Si el usuario editó, actualizar y redibujar para reflejar TOTAL por fila
+    if new_vals != st.session_state[vals_key]:
+        st.session_state[vals_key] = new_vals
+        st.rerun()
+
+    # Fila de totales por columna
+    col_sums  = edited[scols].sum()
     total_val = col_sums.sum()
-
-    total_row = pd.DataFrame(
-        [{
-            "Concepto": f"▶ TOTAL {key}",
-            **col_sums.to_dict(),
-            "TOTAL": total_val
-        }]
-    )
+    total_row = pd.DataFrame([{
+        "Concepto": f"▶ TOTAL {key}",
+        **col_sums.to_dict(),
+        "TOTAL": total_val
+    }])
 
     st.dataframe(
         total_row_style(total_row, scols + ["TOTAL"]),
@@ -217,7 +235,7 @@ cap_rate   = noi_last / sales_last if sales_last != 0 else 0
 equity_actual = sum(-fcf_with_fin[i] for i in range(N) if fcf_with_fin[i] < 0)
 cash_on_cash  = npv_fin / equity_actual if equity_actual != 0 else 0
 
-# ── METRICS CONTAINER ─────────────────────────────────────────────────────────
+# ── METRICS CONTAINER (se rellena aquí, aparece arriba) ───────────────────────
 with metrics_container:
     st.markdown('<div class="section-hdr">INVESTMENT RETURNS — Métricas Clave</div>', unsafe_allow_html=True)
     k1, k2, k3, k4, k5 = st.columns(5)
