@@ -75,7 +75,12 @@ def load_defaults(project_name: str):
     for row in ws.iter_rows(min_row=3, values_only=True):
         sec = str(row[0]).strip() if row[0] else ""
         concept = str(row[1]).strip() if row[1] else ""
-        vals = [float(v) if v is not None else 0.0 for v in row[2:2 + n]]
+        def _f(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return 0.0
+        vals = [_f(v) for v in row[2:2 + n]]
 
         if sec in KNOWN:
             current = sec
