@@ -1,14 +1,19 @@
 def render_section(title, key, section_data, scols, selected):
     st.markdown(f'<div class="section-hdr">{title}</div>', unsafe_allow_html=True)
 
+    # 🔥 Labels
     labels = [r[0] for r in section_data]
+    n_rows = len(labels)
 
-    # DataFrame base
-    df = pd.DataFrame(
-        {"Concepto": labels}
-        | {y: [section_data[i][1][j] for i in range(len(section_data))] for j, y in enumerate(scols)}
-    )
+    # 🔥 Construir matriz de valores de forma segura
+    data_matrix = []
+    for i in range(n_rows):
+        data_matrix.append(section_data[i][1])
 
+    df = pd.DataFrame(data_matrix, columns=scols)
+    df.insert(0, "Concepto", labels)
+
+    # 🔥 Editor
     edited = st.data_editor(
         df,
         use_container_width=True,
@@ -18,26 +23,26 @@ def render_section(title, key, section_data, scols, selected):
         hide_index=True,
     )
 
-    # 🔥 Asegurar valores numéricos limpios
+    # 🔥 Asegurar números
     edited[scols] = edited[scols].fillna(0).astype(float)
 
-    # 🔥 Convertir a estructura usable
+    # 🔥 reconstruir estructura original
     result = []
     for i in range(len(edited)):
-        concept = str(edited.at[i, "Concepto"] or f"Concepto {i+1}")
-        vals = [float(edited.at[i, y] or 0) for y in scols]
+        concept = edited.iloc[i]["Concepto"]
+        vals = edited.iloc[i][scols].tolist()
         result.append((concept, vals))
 
-    # 🔥 SUMAS POR COLUMNA (CORRECTO Y REACTIVO)
-    col_sums = edited[scols].sum().to_dict()
-    total_val = sum(col_sums.values())
+    # 🔥 SUMAS REALES (CORRECTO)
+    col_sums = edited[scols].sum()
+    total_val = col_sums.sum()
 
     total_row = pd.DataFrame(
-        {
-            "Concepto": [f"▶ TOTAL {key}"],
-            **{y: [col_sums[y]] for y in scols},
-            "TOTAL": [total_val],
-        }
+        [{
+            "Concepto": f"▶ TOTAL {key}",
+            **col_sums.to_dict(),
+            "TOTAL": total_val
+        }]
     )
 
     st.dataframe(
