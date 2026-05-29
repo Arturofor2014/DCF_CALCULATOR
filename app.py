@@ -104,8 +104,8 @@ CONCEPT_WIDTH = 220
 
 def col_cfg(scols):
     cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH)}
-    cfg.update({y: st.column_config.NumberColumn(y, format="$%d", width="small") for y in scols})
-    cfg["TOTAL"] = st.column_config.NumberColumn("TOTAL", format="$%d", width="small")
+    cfg.update({y: st.column_config.NumberColumn(y, format="$%,.0f", width="small") for y in scols})
+    cfg["TOTAL"] = st.column_config.NumberColumn("TOTAL", format="$%,.0f", width="small")
     return cfg
 
 def total_row_style(df, num_cols):
