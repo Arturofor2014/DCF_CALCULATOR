@@ -120,13 +120,10 @@ def render_section(title, key, section_data, scols, selected):
     labels = [r[0] for r in section_data]
     n_rows = len(labels)
 
-    # TOTAL column desde session state (1-run lag aceptable)
     ss_key = f"totals_{key}_{selected}"
-    if ss_key not in st.session_state:
+    if ss_key not in st.session_state or len(st.session_state[ss_key]) != n_rows:
         st.session_state[ss_key] = [sum(r[1]) for r in section_data]
     totals = st.session_state[ss_key]
-    if len(totals) != n_rows:
-        totals = [sum(r[1]) for r in section_data]
 
     df = pd.DataFrame(
         {"Concepto": labels}
@@ -164,8 +161,10 @@ def render_section(title, key, section_data, scols, selected):
         column_config={"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH)},
     )
 
-    # Actualizar session state para próximo run
-    st.session_state[ss_key] = [sum(vals) for _, vals in result]
+    new_totals = [sum(vals) for _, vals in result]
+    if new_totals != st.session_state[ss_key]:
+        st.session_state[ss_key] = new_totals
+        st.rerun()
 
     return result
 
