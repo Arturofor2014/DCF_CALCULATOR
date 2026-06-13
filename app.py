@@ -47,6 +47,14 @@ section[data-testid="stSidebar"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
+# ===== ANCHOS DE TABLAS (edita estos valores) =====
+
+TABLES_USE_FIXED_WIDTH = True   # True = usar anchos fijos definidos abajo, False = ocupar todo el ancho disponible
+CONCEPT_COL_WIDTH = 220         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
+YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
+
+METRICS_TABLE_WIDTH = "30%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
+
 @st.cache_data(ttl=300)
 def _download_xlsx():
     FILE_ID = st.secrets["FILE_ID"]
@@ -161,15 +169,18 @@ def kpi_card(label, value, sub="", green=False):
     return (f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
             f'<div class="{cls}">{value}</div><div class="kpi-sub">{sub}</div></div>')
 
-CONCEPT_WIDTH = 220
+# Ancho de columna para "Concepto" y para columnas numéricas (años / SUBTOTAL)
+_CONCEPT_W = CONCEPT_COL_WIDTH if TABLES_USE_FIXED_WIDTH else "medium"
+_YEAR_W    = YEAR_COL_WIDTH if TABLES_USE_FIXED_WIDTH else "small"
+TABLES_USE_CONTAINER_WIDTH = not TABLES_USE_FIXED_WIDTH
 
 def col_cfg(scols):
-    cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH, pinned=True)}
-    cfg.update({y: st.column_config.NumberColumn(y, format="$%,.0f", width="small") for y in scols})
-    cfg["SUBTOTAL"] = st.column_config.NumberColumn("SUBTOTAL", format="$%,.0f", width="small")
+    cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=_CONCEPT_W, pinned=True)}
+    cfg.update({y: st.column_config.NumberColumn(y, format="$%,.0f", width=_YEAR_W) for y in scols})
+    cfg["SUBTOTAL"] = st.column_config.NumberColumn("SUBTOTAL", format="$%,.0f", width=_YEAR_W)
     return cfg
 
-PINNED_CONCEPTO = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH, pinned=True)}
+PINNED_CONCEPTO = {"Concepto": st.column_config.TextColumn("Concepto", width=_CONCEPT_W, pinned=True)}
 
 def total_row_style(df, num_cols):
     return df.style.apply(
@@ -191,7 +202,7 @@ def render_fcf_row(label, year_vals, subtotal, scols):
             lambda x: f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}",
             subset=scols + ["SUBTOTAL"],
         ),
-        use_container_width=True,
+        use_container_width=TABLES_USE_CONTAINER_WIDTH,
         hide_index=True,
         column_config=PINNED_CONCEPTO,
     )
@@ -230,7 +241,7 @@ def render_section(title, key, section_data, scols, selected):
 
         edited = st.data_editor(
             df,
-            use_container_width=True,
+            use_container_width=TABLES_USE_CONTAINER_WIDTH,
             num_rows="fixed",
             key=f"editor_{key}_{sg}_{selected}",
             disabled=["SUBTOTAL"],
@@ -262,7 +273,7 @@ def render_section(title, key, section_data, scols, selected):
         }])
         st.dataframe(
             total_row_style(total_row, list(scols) + ["SUBTOTAL"]),
-            use_container_width=True,
+            use_container_width=TABLES_USE_CONTAINER_WIDTH,
             hide_index=True,
             column_config=PINNED_CONCEPTO,
         )
@@ -314,7 +325,7 @@ st.dataframe(
         lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"),
         subset=SCOLS + ["SUBTOTAL"],
     ),
-    use_container_width=True,
+    use_container_width=TABLES_USE_CONTAINER_WIDTH,
     hide_index=True,
     column_config=PINNED_CONCEPTO,
 )
@@ -382,7 +393,7 @@ with metrics_container:
     )
 
     st.markdown(f"""
-    <table style="width:48%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
+    <table style="width:{METRICS_TABLE_WIDTH};border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
       <thead>
         <tr style="background:#F5F0C8">
           <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">DESCRIPTION</th>
