@@ -62,7 +62,7 @@ METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "
 
 # Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
 # Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
-TABLE_BOX_WIDTH = 600
+TABLE_BOX_WIDTH = 800
 
 st.markdown(f"""
 <style>
