@@ -10,47 +10,52 @@ from datetime import datetime
 
 st.set_page_config(page_title="DCF Project Calculator", layout="wide", page_icon="📊")
 
-st.markdown("""
+# ===== MÁRGENES / PADDING DE LA APP (edita estos valores) =====
+PAGE_MAX_WIDTH    = "60vw"   # ancho máximo del contenido (acepta vw, px, %, etc.)
+PAGE_PADDING_TOP  = "1.5rem" # espacio arriba, antes del título
+PAGE_PADDING_LEFT  = "1rem"  # margen izquierdo del contenido
+PAGE_PADDING_RIGHT = "1rem"  # margen derecho del contenido
+
+st.markdown(f"""
 <style>
-section[data-testid="stSidebar"] { display: none; }
-.main .block-container {
-    padding-top: 1.5rem;
-    max-width: 60vw !important;
+section[data-testid="stSidebar"] {{ display: none; }}
+.main .block-container {{
+    padding-top: {PAGE_PADDING_TOP};
+    max-width: {PAGE_MAX_WIDTH} !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-.kpi-card {
+    padding-left: {PAGE_PADDING_LEFT};
+    padding-right: {PAGE_PADDING_RIGHT};
+}}
+.kpi-card {{
     background: #ffffff; border-radius: 10px; padding: 14px 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.10); text-align: center;
     margin-bottom: 12px; min-height: 110px;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
-}
-.kpi-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.4; }
-.kpi-val   { font-size: 20px; font-weight: 900; color: #0052FF; margin: 6px 0 3px; }
-.kpi-sub   { font-size: 10px; color: #999; }
-.kpi-val-green { font-size: 20px; font-weight: 900; color: #00875A; margin: 6px 0 3px; }
-.section-hdr {
+}}
+.kpi-label {{ font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.4; }}
+.kpi-val   {{ font-size: 20px; font-weight: 900; color: #0052FF; margin: 6px 0 3px; }}
+.kpi-sub   {{ font-size: 10px; color: #999; }}
+.kpi-val-green {{ font-size: 20px; font-weight: 900; color: #00875A; margin: 6px 0 3px; }}
+.section-hdr {{
     font-size: 13px; font-weight: 800; color: #0052FF;
     letter-spacing: 2px; text-transform: uppercase;
     border-left: 4px solid #0052FF; padding-left: 10px; margin: 20px 0 6px;
-}
-.subgroup-hdr {
+}}
+.subgroup-hdr {{
     background: #F5F0C8; padding: 5px 12px 5px 16px;
     font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
     color: #5D4E0D; border-left: 4px solid #C8A800;
     margin: 6px 0 1px 0;
-}
-.page-title { font-size: 26px; font-weight: 900; color: #0052FF; letter-spacing: 1px; }
-.page-sub   { font-size: 13px; color: #888; margin-top: -4px; }
+}}
+.page-title {{ font-size: 26px; font-weight: 900; color: #0052FF; letter-spacing: 1px; }}
+.page-sub   {{ font-size: 13px; color: #888; margin-top: -4px; }}
 </style>
 """, unsafe_allow_html=True)
 
 # ===== ANCHOS DE TABLAS (edita estos valores) =====
-
 TABLES_USE_FIXED_WIDTH = True   # True = usar anchos fijos definidos abajo, False = ocupar todo el ancho disponible
-CONCEPT_COL_WIDTH = 180         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
+CONCEPT_COL_WIDTH = 220         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
 YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
 
 METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
