@@ -16,7 +16,7 @@ section[data-testid="stSidebar"] { display: none; }
 .main .block-container {
     padding-top: 1.5rem;
     max-width: 60vw !important;
-    margin-left: auto !important;
+    margin-left: 3rem !important;
     margin-right: auto !important;
     padding-left: 1rem;
     padding-right: 1rem;
