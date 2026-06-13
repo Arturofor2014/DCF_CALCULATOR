@@ -18,7 +18,7 @@ section[data-testid="stSidebar"] { display: none; }
     max-width: 60vw !important;
     margin-left: 3rem !important;
     margin-right: auto !important;
-    padding-left: 1rem;
+    padding-left: 3rem;
     padding-right: 1rem;
 }
 .kpi-card {
