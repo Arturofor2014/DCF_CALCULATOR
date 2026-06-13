@@ -228,6 +228,11 @@ def render_section(title, key, section_data, scols, selected):
         df.insert(0, "Concepto", labels)
         df["SUBTOTAL"] = row_totals
 
+table_col, _ = st.columns([0.70, 0.30])
+
+with table_col:
+
+        
         edited = st.data_editor(
             df,
             use_container_width=True,
@@ -260,13 +265,16 @@ def render_section(title, key, section_data, scols, selected):
             **sg_year_totals.to_dict(),
             "SUBTOTAL": sg_total,
         }])
-        st.dataframe(
-            total_row_style(total_row, list(scols) + ["SUBTOTAL"]),
-            use_container_width=True,
-            hide_index=True,
-            column_config=PINNED_CONCEPTO,
-        )
+        table_col, _ = st.columns([0.70, 0.30])
 
+        with table_col:
+            st.dataframe(
+                total_row_style(total_row, list(scols) + ["SUBTOTAL"]),
+                use_container_width=True,
+                hide_index=True,
+                column_config=PINNED_CONCEPTO,
+            )
+    
         all_results.extend(sg_results)
 
     return all_results
