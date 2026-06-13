@@ -60,6 +60,20 @@ YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px
 
 METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
 
+# Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
+# Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
+TABLE_BOX_WIDTH = 682
+
+st.markdown(f"""
+<style>
+div[data-testid="stDataFrame"],
+div[data-testid="stDataFrame"] > div,
+.stDataFrameGlideDataEditor {{
+    width: {TABLE_BOX_WIDTH}px !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+
 @st.cache_data(ttl=300)
 def _download_xlsx():
     FILE_ID = st.secrets["FILE_ID"]
