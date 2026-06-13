@@ -8,14 +8,19 @@ import io
 from io import BytesIO
 from datetime import datetime
 
-# ── CONFIG ─────────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="DCF Project Calculator", layout="wide", page_icon="📊")
 
-# ── STYLES ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 section[data-testid="stSidebar"] { display: none; }
-.main .block-container { max-width: 1400px; padding-top: 1.5rem; }
+.main .block-container {
+    padding-top: 1.5rem;
+    max-width: 60vw !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
 .kpi-card {
     background: #ffffff; border-radius: 10px; padding: 14px 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.10); text-align: center;
@@ -29,33 +34,35 @@ section[data-testid="stSidebar"] { display: none; }
 .section-hdr {
     font-size: 13px; font-weight: 800; color: #0052FF;
     letter-spacing: 2px; text-transform: uppercase;
-    border-left: 4px solid #0052FF; padding-left: 10px; margin: 20px 0 10px;
+    border-left: 4px solid #0052FF; padding-left: 10px; margin: 20px 0 6px;
+}
+.subgroup-hdr {
+    background: #F5F0C8; padding: 5px 12px 5px 16px;
+    font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
+    color: #5D4E0D; border-left: 4px solid #C8A800;
+    margin: 6px 0 1px 0;
 }
 .page-title { font-size: 26px; font-weight: 900; color: #0052FF; letter-spacing: 1px; }
 .page-sub   { font-size: 13px; color: #888; margin-top: -4px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── DESCARGA DESDE GOOGLE SHEETS ──────────────────────────────────────────────
 @st.cache_data(ttl=300)
 def _download_xlsx():
     FILE_ID = st.secrets["FILE_ID"]
     r = requests.get(f"https://docs.google.com/spreadsheets/d/{FILE_ID}/export?format=xlsx")
     return r.content
 
-# ── PROYECTO SELECTOR ──────────────────────────────────────────────────────────
 @st.cache_data
 def get_projects():
     wb = openpyxl.load_workbook(io.BytesIO(_download_xlsx()), read_only=True)
     return [s for s in wb.sheetnames if s not in ("INSTRUCCIONES", "PLANTILLA")]
 
-# ── LOAD DEFAULTS (completamente dinámico) ─────────────────────────────────────
 @st.cache_data
 def load_defaults(project_name: str):
     wb = openpyxl.load_workbook(io.BytesIO(_download_xlsx()), data_only=True)
     ws = wb[project_name]
 
-    # Años desde fila 2 (acepta int o string)
     header = next(ws.iter_rows(min_row=2, max_row=2, values_only=True))
     years = []
     for v in header[2:]:
@@ -67,7 +74,6 @@ def load_defaults(project_name: str):
             pass
     n = len(years)
 
-    # Leer filas agrupadas por sección
     KNOWN = {"INFLOWS", "OUTFLOWS", "FINANCING"}
     sections = {"INFLOWS": [], "OUTFLOWS": [], "FINANCING": []}
     current = None
@@ -78,25 +84,77 @@ def load_defaults(project_name: str):
         except (TypeError, ValueError):
             return 0.0
 
-    for row in ws.iter_rows(min_row=3, values_only=True):
+    for row in ws.iter_rows(min_row=3, max_row=39, values_only=True):
         sec     = str(row[0]).strip() if row[0] else ""
         concept = str(row[1]).strip() if row[1] else ""
 
         if sec in KNOWN:
             current = sec
-            continue  # fila de cabecera de sección, no es dato
+            if concept:
+                vals = [_f(v) for v in row[2:2 + n]]
+                sections[current].append((concept, vals))
+            continue
 
         if current and concept:
             vals = [_f(v) for v in row[2:2 + n]]
             sections[current].append((concept, vals))
 
-    return sections, years
+    DEFAULTS = {
+        "INFLOWS":   ["Rent", "Sales"],
+        "OUTFLOWS":  ["CAPEX", "OPEX", "Rent Comm", "Sales Comm"],
+        "FINANCING": ["Debt Draw", "Debt Repay"],
+    }
 
-# ── HELPERS ────────────────────────────────────────────────────────────────────
+    for sec, default_concepts in DEFAULTS.items():
+        loaded = {r[0]: r[1] for r in sections[sec]}
+        ordered = []
+        for c in default_concepts:
+            ordered.append((c, loaded.get(c, [0.0] * n)))
+        for c, v in sections[sec]:
+            if c not in default_concepts:
+                ordered.append((c, v))
+        sections[sec] = ordered
+
+    # Leer métricas desde fila 40 en adelante (col A = label, col B = valor)
+    metrics = []
+    reading = False
+    for row in ws.iter_rows(min_row=40, max_col=2, values_only=True):
+        a, b = row[0], row[1]
+        if str(a).strip().lower() == "description":
+            reading = True
+            continue
+        if reading and a and b is not None:
+            try:
+                metrics.append((str(a).strip(), float(b)))
+            except (TypeError, ValueError):
+                pass
+
+    return sections, years, metrics
+
 def fmt_usd(v):
     if v is None or (isinstance(v, float) and np.isnan(v)):
         return "—"
     return f"(${abs(v):,.0f})" if v < 0 else f"${v:,.0f}"
+
+# Sub-group visual grouping (purely display — data structure unchanged)
+CONCEPT_SUBGROUP = {
+    "Rent":       "REVENUE",
+    "Sales":      "REVENUE",
+    "CAPEX":      "COSTS & EXPENSES",
+    "OPEX":       "COSTS & EXPENSES",
+    "Rent Comm":  "COMMISSIONS",
+    "Sales Comm": "COMMISSIONS",
+}
+SEC_SUBGROUPS = {
+    "INFLOWS":   ["REVENUE"],
+    "OUTFLOWS":  ["COSTS & EXPENSES", "COMMISSIONS", "TAXES"],
+    "FINANCING": ["FCF FROM FINANCING"],
+}
+SEC_DEFAULT_SG = {
+    "INFLOWS":   "REVENUE",
+    "OUTFLOWS":  "TAXES",
+    "FINANCING": "FCF FROM FINANCING",
+}
 
 def kpi_card(label, value, sub="", green=False):
     cls = "kpi-val-green" if green else "kpi-val"
@@ -106,79 +164,113 @@ def kpi_card(label, value, sub="", green=False):
 CONCEPT_WIDTH = 220
 
 def col_cfg(scols):
-    cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH)}
+    cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH, pinned=True)}
     cfg.update({y: st.column_config.NumberColumn(y, format="$%,.0f", width="small") for y in scols})
-    cfg["TOTAL"] = st.column_config.NumberColumn("TOTAL", format="$%,.0f", width="small")
+    cfg["SUBTOTAL"] = st.column_config.NumberColumn("SUBTOTAL", format="$%,.0f", width="small")
     return cfg
+
+PINNED_CONCEPTO = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH, pinned=True)}
 
 def total_row_style(df, num_cols):
     return df.style.apply(
         lambda r: ["background-color:#1E3A5F;color:white;font-weight:bold"] * len(r), axis=1
     ).format(lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"), subset=num_cols)
 
-# ── RENDER SECTION ─────────────────────────────────────────────────────────────
+def sum_by_year(section, n):
+    return [sum(vals[i] for _, vals in section) for i in range(n)]
+
+def render_fcf_row(label, year_vals, subtotal, scols):
+    row = {"Concepto": label}
+    row.update({scols[i]: year_vals[i] for i in range(len(scols))})
+    row["SUBTOTAL"] = subtotal
+    df = pd.DataFrame([row])
+    st.dataframe(
+        df.style.apply(
+            lambda r: ["background-color:#DBEAFE;color:#1E3A5F;font-weight:bold"] * len(r), axis=1
+        ).format(
+            lambda x: f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}",
+            subset=scols + ["SUBTOTAL"],
+        ),
+        use_container_width=True,
+        hide_index=True,
+        column_config=PINNED_CONCEPTO,
+    )
+
 def render_section(title, key, section_data, scols, selected):
     st.markdown(f'<div class="section-hdr">{title}</div>', unsafe_allow_html=True)
 
-    labels   = [r[0] for r in section_data]
-    n_rows   = len(labels)
-    vals_key = f"vals_{key}_{selected}"
+    # Assign each concept to its sub-group
+    sg_data = {}
+    for concept, vals in section_data:
+        sg = CONCEPT_SUBGROUP.get(concept, SEC_DEFAULT_SG.get(key, "OTHER"))
+        sg_data.setdefault(sg, []).append((concept, vals))
 
-    # Inicializar con valores del sheet
-    if vals_key not in st.session_state or len(st.session_state[vals_key]) != n_rows:
-        st.session_state[vals_key] = [list(r[1]) for r in section_data]
+    subgroups  = SEC_SUBGROUPS.get(key, ["OTHER"])
+    all_results = []
 
-    # TOTAL por fila calculado desde session state
-    row_totals = [sum(v) for v in st.session_state[vals_key]]
+    for sg in subgroups:
+        sg_concepts = sg_data.get(sg, [])
+        if not sg_concepts:
+            continue
 
-    df = pd.DataFrame(st.session_state[vals_key], columns=scols)
-    df.insert(0, "Concepto", labels)
-    df["TOTAL"] = row_totals
+        st.markdown(f'<div class="subgroup-hdr">{sg}</div>', unsafe_allow_html=True)
 
-    edited = st.data_editor(
-        df,
-        use_container_width=True,
-        num_rows="fixed",
-        key=f"editor_{key}_{selected}",
-        disabled=["TOTAL"],
-        column_config=col_cfg(scols),
-        hide_index=True,
-    )
+        n_rows   = len(sg_concepts)
+        vals_key = f"vals_{key}_{sg}_{selected}"
 
-    edited[scols] = edited[scols].fillna(0).astype(float)
+        if vals_key not in st.session_state or len(st.session_state[vals_key]) != n_rows:
+            st.session_state[vals_key] = [list(c[1]) for c in sg_concepts]
 
-    result   = []
-    new_vals = []
-    for i in range(len(edited)):
-        concept = str(edited.iloc[i]["Concepto"] or f"Concepto {i+1}")
-        vals    = edited.iloc[i][scols].tolist()
-        result.append((concept, vals))
-        new_vals.append(vals)
+        labels     = [c[0] for c in sg_concepts]
+        row_totals = [sum(v) for v in st.session_state[vals_key]]
 
-    # Si el usuario editó, actualizar y redibujar para reflejar TOTAL por fila
-    if new_vals != st.session_state[vals_key]:
-        st.session_state[vals_key] = new_vals
-        st.rerun()
+        df = pd.DataFrame(st.session_state[vals_key], columns=scols)
+        df.insert(0, "Concepto", labels)
+        df["SUBTOTAL"] = row_totals
 
-    # Fila de totales por columna
-    col_sums  = edited[scols].sum()
-    total_val = col_sums.sum()
-    total_row = pd.DataFrame([{
-        "Concepto": f"▶ TOTAL {key}",
-        **col_sums.to_dict(),
-        "TOTAL": total_val
-    }])
+        edited = st.data_editor(
+            df,
+            use_container_width=True,
+            num_rows="fixed",
+            key=f"editor_{key}_{sg}_{selected}",
+            disabled=["SUBTOTAL"],
+            column_config=col_cfg(scols),
+            hide_index=True,
+        )
 
-    st.dataframe(
-        total_row_style(total_row, scols + ["TOTAL"]),
-        use_container_width=True,
-        hide_index=True,
-        column_config={"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH)},
-    )
+        edited[scols] = edited[scols].fillna(0).astype(float)
 
-    return result
+        sg_results    = []
+        new_vals_list = []
+        for i in range(len(edited)):
+            concept = str(edited.iloc[i]["Concepto"] or sg_concepts[i][0])
+            vals    = edited.iloc[i][scols].tolist()
+            sg_results.append((concept, vals))
+            new_vals_list.append(vals)
 
-# ── HEADER ─────────────────────────────────────────────────────────────────────
+        if new_vals_list != st.session_state[vals_key]:
+            st.session_state[vals_key] = new_vals_list
+            st.rerun()
+
+        # Consolidated total row for this sub-group
+        sg_year_totals = edited[scols].sum()
+        sg_total       = sg_year_totals.sum()
+        total_row = pd.DataFrame([{
+            "Concepto": f"▶ {sg}",
+            **sg_year_totals.to_dict(),
+            "SUBTOTAL": sg_total,
+        }])
+        st.dataframe(
+            total_row_style(total_row, list(scols) + ["SUBTOTAL"]),
+            use_container_width=True,
+            hide_index=True,
+            column_config=PINNED_CONCEPTO,
+        )
+
+        all_results.extend(sg_results)
+
+    return all_results
+
 st.markdown('<div class="page-title">📊 DCF PROJECT CALCULATOR</div>', unsafe_allow_html=True)
 st.markdown('<div class="page-sub">Selecciona un proyecto · edita las celdas · los resultados se recalculan automáticamente</div>', unsafe_allow_html=True)
 
@@ -190,109 +282,133 @@ with col_info:
     st.markdown(f"<br><span style='color:#888;font-size:13px'>Fuente: <code>Google Sheets</code> · Hoja: <code>{selected}</code></span>",
                 unsafe_allow_html=True)
 
-D, YEARS = load_defaults(selected)
+D, YEARS, METRICS = load_defaults(selected)
 SCOLS = [str(y) for y in YEARS]
 N = len(YEARS)
 st.divider()
 
-# ── METRICS PLACEHOLDER ────────────────────────────────────────────────────────
 metrics_container = st.container()
 st.divider()
 
-# ── SECCIONES EDITABLES ────────────────────────────────────────────────────────
-inflows  = render_section("INFLOWS — Ingresos",              "INFLOWS",  D["INFLOWS"],  SCOLS, selected)
-outflows = render_section("OUTFLOWS — Costos y Comisiones",  "OUTFLOWS", D["OUTFLOWS"], SCOLS, selected)
-st.caption("Los valores de CAPEX, OPEX y comisiones deben ingresarse como números negativos.")
-financing = render_section("FCF FROM FINANCING — Deuda",     "FINANCING", D["FINANCING"], SCOLS, selected)
+inflows  = render_section("INFLOWS",  "INFLOWS",  D["INFLOWS"],  SCOLS, selected)
+outflows = render_section("OUTFLOWS", "OUTFLOWS", D["OUTFLOWS"], SCOLS, selected)
 
-# ── CÁLCULOS ───────────────────────────────────────────────────────────────────
-def sum_by_year(section, n):
-    return [sum(vals[i] for _, vals in section) for i in range(n)]
+inflows_yr  = sum_by_year(inflows, N)
+outflows_yr = sum_by_year(outflows, N)
+fcf_no_fin  = [inflows_yr[i] + outflows_yr[i] for i in range(N)]
+npv_no      = sum(fcf_no_fin)
 
-inflows_yr   = sum_by_year(inflows,  N)
-outflows_yr  = sum_by_year(outflows, N)
+# Totales consolidados INFLOWS / OUTFLOWS
+st.markdown('<div class="section-hdr">TOTALES</div>', unsafe_allow_html=True)
+totals_df = pd.DataFrame([
+    {"Concepto": "▶ TOTAL INFLOWS",  **{SCOLS[i]: inflows_yr[i]  for i in range(N)}, "SUBTOTAL": sum(inflows_yr)},
+    {"Concepto": "▶ TOTAL OUTFLOWS", **{SCOLS[i]: outflows_yr[i] for i in range(N)}, "SUBTOTAL": sum(outflows_yr)},
+])
+st.dataframe(
+    totals_df.style.apply(
+        lambda r: [
+            "background-color:#DBEAFE;color:#1e40af;font-weight:bold" if r["Concepto"].endswith("INFLOWS")
+            else "background-color:#FEE2E2;color:#991b1b;font-weight:bold"
+        ] * len(r), axis=1
+    ).format(
+        lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"),
+        subset=SCOLS + ["SUBTOTAL"],
+    ),
+    use_container_width=True,
+    hide_index=True,
+    column_config=PINNED_CONCEPTO,
+)
+
+st.markdown('<div class="section-hdr">FCF SIN FINANCIAMIENTO</div>', unsafe_allow_html=True)
+render_fcf_row("FCF (Excluye Financiamiento)", fcf_no_fin, npv_no, SCOLS)
+
+financing    = render_section("FINANCING", "FINANCING", D["FINANCING"], SCOLS, selected)
 financing_yr = sum_by_year(financing, N)
+fcf_with_fin = [fcf_no_fin[i] + financing_yr[i] for i in range(N)]
+npv_fin      = sum(fcf_with_fin)
 
-fcf_no_fin   = [inflows_yr[i] + outflows_yr[i]            for i in range(N)]
-fcf_with_fin = [fcf_no_fin[i] + financing_yr[i]           for i in range(N)]
+st.markdown('<div class="section-hdr">FCF CON FINANCIAMIENTO</div>', unsafe_allow_html=True)
+render_fcf_row("FCF (Incluye Financiamiento)", fcf_with_fin, npv_fin, SCOLS)
 
 def safe_irr(cf):
     try:
         v = npf.irr(cf)
-        return v if v is not None and not np.isnan(v) else None
+        if v is None:
+            return None
+        v = float(np.real(v))
+        return v if not np.isnan(v) else None
     except Exception:
         return None
 
 irr_no  = safe_irr(fcf_no_fin)
 irr_fin = safe_irr(fcf_with_fin)
-npv_no  = sum(fcf_no_fin)
-npv_fin = sum(fcf_with_fin)
 
 noi_last   = inflows_yr[-1] + outflows_yr[-1]
 sales_last = inflows_yr[-1]
 cap_rate   = noi_last / sales_last if sales_last != 0 else 0
 
 equity_actual = sum(-fcf_with_fin[i] for i in range(N) if fcf_with_fin[i] < 0)
-cash_on_cash  = npv_fin / equity_actual if equity_actual != 0 else 0
+cash_on_cash  = npv_fin / equity_actual if equity_actual != 0 else None
 
-# ── METRICS CONTAINER (se rellena aquí, aparece arriba) ───────────────────────
 with metrics_container:
     st.markdown('<div class="section-hdr">INVESTMENT RETURNS — Métricas Clave</div>', unsafe_allow_html=True)
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.markdown(kpi_card("IRR Sin Financiamiento",
-                         f"{irr_no*100:.2f}%"  if irr_no  else "—", "Project Closing"), unsafe_allow_html=True)
-    k2.markdown(kpi_card("IRR Con Financiamiento",
-                         f"{irr_fin*100:.2f}%" if irr_fin else "—", "Project Closing", green=True), unsafe_allow_html=True)
-    k3.markdown(kpi_card("NPV Sin Financiamiento", fmt_usd(npv_no),  "Suma FCF"), unsafe_allow_html=True)
-    k4.markdown(kpi_card("NPV Con Financiamiento", fmt_usd(npv_fin), "Suma FCF"), unsafe_allow_html=True)
-    k5.markdown(kpi_card("Cash-on-Cash",
-                         f"{cash_on_cash:.4f}x" if cash_on_cash else "—", "NPV / Equity"), unsafe_allow_html=True)
 
-    st.markdown("**Resumen IRR / NPV**")
-    st.dataframe(pd.DataFrame({
-        "Descripción": ["IRR Sin Financiamiento", "IRR Con Financiamiento"],
-        "TIR":         [f"{irr_no*100:.2f}%"  if irr_no  else "—",
-                        f"{irr_fin*100:.2f}%" if irr_fin else "—"],
-        "VAN (Suma FCF)": [fmt_usd(npv_no), fmt_usd(npv_fin)],
-    }), use_container_width=False, hide_index=True)
+    def concept_total(section, name):
+        for concept, vals in section:
+            if concept == name:
+                return sum(vals)
+        return 0
 
-# ── FREE CASH FLOW ─────────────────────────────────────────────────────────────
-st.divider()
-st.markdown('<div class="section-hdr">FREE CASH FLOW — Resultados Calculados</div>', unsafe_allow_html=True)
+    PCT_KEYS  = {"CASH-ON-CASH", "IRR WITH FINANCING", "IRR SIN FINANCING",
+                 "ROI", "ROE", "CAP RATE", "CAP RATE ANUAL"}
+    MULT_KEYS = {"EQUITY MULTIPLE"}
 
-fcf_df = pd.DataFrame(
-    {"Concepto": ["FCF (Sin Financiamiento)", "FCF (Con Financiamiento)"]}
-    | {str(y): [fcf_no_fin[i], fcf_with_fin[i]] for i, y in enumerate(YEARS)}
-    | {"SUBTOTAL": [npv_no, npv_fin]}
-)
+    def fmt_metric(key, val):
+        k = key.upper()
+        if k in PCT_KEYS or any(x in k for x in ("IRR", "RATE", "ROI", "ROE", "CASH")):
+            return f"{val*100:.2f}%"
+        if k in MULT_KEYS or "MULTIPLE" in k:
+            return f"{val:.3f}"
+        return fmt_usd(val)
 
-st.dataframe(
-    fcf_df.style.format(
-        lambda x: f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}",
-        subset=[str(y) for y in YEARS] + ["SUBTOTAL"],
-    ),
-    use_container_width=True,
-    hide_index=True,
-    column_config={"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH)},
-)
+    rows = [(label, fmt_metric(label, val)) for label, val in METRICS]
 
-# ── DESCARGAR ─────────────────────────────────────────────────────────────────
+    body = "".join(
+        f'<tr style="background:{"#FAFAFA" if i%2==0 else "#FFFFFF"}">'
+        f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:#1a1a2e;border-bottom:1px solid #eee">{d}</td>'
+        f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:#0052FF;border-bottom:1px solid #eee">{v}</td>'
+        f'</tr>'
+        for i, (d, v) in enumerate(rows)
+    )
+
+    st.markdown(f"""
+    <table style="width:48%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
+      <thead>
+        <tr style="background:#F5F0C8">
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">DESCRIPTION</th>
+          <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
+        </tr>
+      </thead>
+      <tbody>{body}</tbody>
+    </table>
+    """, unsafe_allow_html=True)
+
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
 fmt_choice = st.radio("Selecciona el formato:", ["Excel (.xlsx)", "PDF (.pdf)"], horizontal=True)
 
-# ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
 def build_excel():
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
-        wb_out = writer.book
-        hdr_fmt   = wb_out.add_format({"bold": True, "bg_color": "#0052FF", "font_color": "#FFFFFF", "border": 1, "align": "center"})
-        lbl_fmt   = wb_out.add_format({"bold": True, "bg_color": "#EEF2FF", "border": 1, "indent": 1})
-        num_fmt   = wb_out.add_format({"num_format": '#,##0;(#,##0)', "border": 1, "align": "right"})
-        tot_fmt   = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#DBEAFE", "align": "right"})
-        pct_fmt   = wb_out.add_format({"num_format": '0.00%', "border": 1, "align": "right"})
+        wb_out   = writer.book
+        hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": "#0052FF", "font_color": "#FFFFFF", "border": 1, "align": "center"})
+        lbl_fmt  = wb_out.add_format({"bold": True, "bg_color": "#EEF2FF", "border": 1, "indent": 1})
+        num_fmt  = wb_out.add_format({"num_format": '#,##0;(#,##0)', "border": 1, "align": "right"})
+        tot_fmt  = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#DBEAFE", "align": "right"})
+        pct_fmt  = wb_out.add_format({"num_format": '0.00%', "border": 1, "align": "right"})
         title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#0052FF"})
-        sub_fmt   = wb_out.add_format({"bold": True, "bg_color": "#1E3A5F", "font_color": "#FFFFFF", "border": 1, "indent": 1})
+        sub_fmt  = wb_out.add_format({"bold": True, "bg_color": "#1E3A5F", "font_color": "#FFFFFF", "border": 1, "indent": 1})
+        date_fmt = wb_out.add_format({"italic": True, "font_size": 10, "font_color": "#888888"})
 
         ws = wb_out.add_worksheet("DCF PROJECT")
         writer.sheets["DCF PROJECT"] = ws
@@ -302,7 +418,6 @@ def build_excel():
 
         ncols = N + 1
         ts = datetime.now().strftime("%d/%m/%Y  %H:%M")
-        date_fmt = wb_out.add_format({"italic": True, "font_size": 10, "font_color": "#888888"})
         ws.merge_range(0, 0, 0, ncols, f"Generado: {ts}", date_fmt)
         ws.merge_range(1, 0, 1, ncols, f"DCF PROJECT — {selected.upper()}   |   Closing", title_fmt)
         ws.write(2, 0, "Concepto", hdr_fmt)
@@ -323,8 +438,8 @@ def build_excel():
                 rn += 1
             rn += 1
 
-        write_sec("INFLOWS",          inflows)
-        write_sec("OUTFLOWS",         outflows)
+        write_sec("INFLOWS",            inflows)
+        write_sec("OUTFLOWS",           outflows)
         write_sec("FCF FROM FINANCING", financing)
         write_sec("FREE CASH FLOW", [
             ("FCF (Sin Financiamiento)", fcf_no_fin),
@@ -335,8 +450,8 @@ def build_excel():
         for label, val, fmt_ in [
             ("IRR Sin Financiamiento", irr_no  or 0, pct_fmt),
             ("IRR Con Financiamiento", irr_fin or 0, pct_fmt),
-            ("NPV Sin Financiamiento", npv_no,  tot_fmt),
-            ("NPV Con Financiamiento", npv_fin, tot_fmt),
+            ("NPV Sin Financiamiento", npv_no,       tot_fmt),
+            ("NPV Con Financiamiento", npv_fin,      tot_fmt),
         ]:
             ws.write(rn, 0, label, lbl_fmt)
             ws.write(rn, 1, val, fmt_)
@@ -345,7 +460,6 @@ def build_excel():
     buf.seek(0)
     return buf.read()
 
-# ── PDF EXPORT ────────────────────────────────────────────────────────────────
 def build_pdf():
     from fpdf import FPDF
     pdf = FPDF(orientation="L", unit="mm", format="A3")
@@ -353,8 +467,8 @@ def build_pdf():
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(True, margin=15)
 
-    BLUE  = (0, 82, 255); LBLUE = (238, 242, 255)
-    DARK  = (30, 58, 95); WHITE = (255, 255, 255); TEXT = (38, 39, 48)
+    BLUE  = (0, 82, 255);  LBLUE = (238, 242, 255)
+    DARK  = (30, 58, 95);  WHITE = (255, 255, 255); TEXT = (38, 39, 48)
 
     col_w   = max(18, int(360 / (N + 2)))
     label_w = 50
@@ -416,10 +530,10 @@ def build_pdf():
     pdf.set_fill_color(*DARK); pdf.set_text_color(*WHITE); pdf.set_font("Helvetica", "B", 8)
     pdf.cell(130, 7, "  INVESTMENT RETURNS", border=1, fill=True, ln=True)
     for lbl, val, is_total in [
-        ("IRR Sin Financiamiento", f"{irr_no*100:.2f}%"  if irr_no  else "-", False),
-        ("IRR Con Financiamiento", f"{irr_fin*100:.2f}%" if irr_fin else "-", False),
-        ("NPV Sin Financiamiento", fmt_usd(npv_no).replace("—", "-"),         True),
-        ("NPV Con Financiamiento", fmt_usd(npv_fin).replace("—", "-"),        True),
+        ("IRR Sin Financiamiento", f"{irr_no*100:.2f}%"  if irr_no  is not None else "-", False),
+        ("IRR Con Financiamiento", f"{irr_fin*100:.2f}%" if irr_fin is not None else "-", False),
+        ("NPV Sin Financiamiento", fmt_usd(npv_no).replace("—", "-"),  True),
+        ("NPV Con Financiamiento", fmt_usd(npv_fin).replace("—", "-"), True),
     ]:
         pdf.set_fill_color(*LBLUE); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(80, 6, f"  {lbl}", border=1, fill=True)
@@ -436,7 +550,6 @@ def build_pdf():
     buf.seek(0)
     return buf.read()
 
-# ── DOWNLOAD BUTTON ───────────────────────────────────────────────────────────
 if fmt_choice == "Excel (.xlsx)":
     st.download_button("⬇️ Descargar Excel", build_excel(),
                        file_name=f"DCF_{selected}.xlsx",
