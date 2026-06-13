@@ -13,8 +13,8 @@ st.set_page_config(page_title="DCF Project Calculator", layout="wide", page_icon
 # ===== MÁRGENES / PADDING DE LA APP (edita estos valores) =====
 PAGE_MAX_WIDTH    = "60vw"   # ancho máximo del contenido (acepta vw, px, %, etc.)
 PAGE_PADDING_TOP  = "1.5rem" # espacio arriba, antes del título
-PAGE_PADDING_LEFT  = "3rem"  # margen izquierdo del contenido
-PAGE_PADDING_RIGHT = "1rem"  # margen derecho del contenido
+PAGE_PADDING_LEFT  = "1rem"  # margen izquierdo del contenido
+PAGE_PADDING_RIGHT = "2rem"  # margen derecho del contenido
 
 st.markdown(f"""
 <style>
