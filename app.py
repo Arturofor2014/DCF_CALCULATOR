@@ -15,11 +15,11 @@ st.markdown("""
 section[data-testid="stSidebar"] { display: none; }
 .main .block-container {
     padding-top: 1.5rem;
-    max-width: 60vw !important;
+    max-width: 40vw !important;
     margin-left: 3rem !important;
-    margin-right: auto !important;
+    margin-right: 3rem !important;
     padding-left: 3rem;
-    padding-right: 1rem;
+    padding-right: 3rem;
 }
 .kpi-card {
     background: #ffffff; border-radius: 10px; padding: 14px 10px;
