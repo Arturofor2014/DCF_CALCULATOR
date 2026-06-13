@@ -161,7 +161,7 @@ def kpi_card(label, value, sub="", green=False):
     return (f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
             f'<div class="{cls}">{value}</div><div class="kpi-sub">{sub}</div></div>')
 
-CONCEPT_WIDTH = 220
+CONCEPT_WIDTH = 110
 
 def col_cfg(scols):
     cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=CONCEPT_WIDTH, pinned=True)}
