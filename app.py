@@ -16,6 +16,15 @@ PAGE_PADDING_TOP  = "1.5rem" # espacio arriba, antes del título
 PAGE_PADDING_LEFT  = "1rem"  # margen izquierdo del contenido
 PAGE_PADDING_RIGHT = "1rem"  # margen derecho del contenido
 
+# Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
+# Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
+TABLE_BOX_WIDTH = 682
+
+# ===== ANCHO DE ETIQUETAS DE TÍTULO (edita estos valores) =====
+# Por defecto se ajustan al ancho de su tabla correspondiente (TABLE_BOX_WIDTH).
+SECTION_HDR_WIDTH  = f"{TABLE_BOX_WIDTH}px"  # ancho de los títulos de sección (INFLOWS, OUTFLOWS, TOTALES, etc.)
+SUBGROUP_HDR_WIDTH = f"{TABLE_BOX_WIDTH}px"  # ancho de las etiquetas de subgrupo (REVENUE, COSTS & EXPENSES, etc.)
+
 st.markdown(f"""
 <style>
 section[data-testid="stSidebar"] {{ display: none; }}
@@ -41,12 +50,14 @@ section[data-testid="stSidebar"] {{ display: none; }}
     font-size: 13px; font-weight: 800; color: #0052FF;
     letter-spacing: 2px; text-transform: uppercase;
     border-left: 4px solid #0052FF; padding-left: 10px; margin: 20px 0 6px;
+    width: {SECTION_HDR_WIDTH}; box-sizing: border-box;
 }}
 .subgroup-hdr {{
     background: #F5F0C8; padding: 5px 12px 5px 16px;
     font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
     color: #5D4E0D; border-left: 4px solid #C8A800;
     margin: 6px 0 1px 0;
+    width: {SUBGROUP_HDR_WIDTH}; box-sizing: border-box;
 }}
 .page-title {{ font-size: 26px; font-weight: 900; color: #0052FF; letter-spacing: 1px; }}
 .page-sub   {{ font-size: 13px; color: #888; margin-top: -4px; }}
@@ -55,14 +66,10 @@ section[data-testid="stSidebar"] {{ display: none; }}
 
 # ===== ANCHOS DE TABLAS (edita estos valores) =====
 TABLES_USE_FIXED_WIDTH = True   # True = usar anchos fijos definidos abajo, False = ocupar todo el ancho disponible
-CONCEPT_COL_WIDTH = True         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
-YEAR_COL_WIDTH    = True         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
+CONCEPT_COL_WIDTH = 220         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
+YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
 
 METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
-
-# Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
-# Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
-TABLE_BOX_WIDTH = True
 
 st.markdown(f"""
 <style>
