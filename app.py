@@ -18,7 +18,7 @@ PAGE_PADDING_RIGHT = "1rem"  # margen derecho del contenido
 
 # Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
 # Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
-TABLE_BOX_WIDTH = 1000
+TABLE_BOX_WIDTH = 682
 
 # ===== ANCHO DE ETIQUETAS DE TÍTULO (edita estos valores) =====
 # Por defecto se ajustan al ancho de su tabla correspondiente (TABLE_BOX_WIDTH).
@@ -66,8 +66,8 @@ section[data-testid="stSidebar"] {{ display: none; }}
 
 # ===== ANCHOS DE TABLAS (edita estos valores) =====
 TABLES_USE_FIXED_WIDTH = True   # True = usar anchos fijos definidos abajo, False = ocupar todo el ancho disponible
-CONCEPT_COL_WIDTH = True        # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
-YEAR_COL_WIDTH    = True         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
+CONCEPT_COL_WIDTH = 220         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
+YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
 
 METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
 
@@ -206,8 +206,6 @@ def col_cfg(scols):
     cfg["SUBTOTAL"] = st.column_config.NumberColumn("SUBTOTAL", format="$%,.0f", width=_YEAR_W)
     return cfg
 
-PINNED_CONCEPTO = {"Concepto": st.column_config.TextColumn("Concepto", width=_CONCEPT_W, pinned=True)}
-
 def total_row_style(df, num_cols):
     return df.style.apply(
         lambda r: ["background-color:#1E3A5F;color:white;font-weight:bold"] * len(r), axis=1
@@ -230,7 +228,7 @@ def render_fcf_row(label, year_vals, subtotal, scols):
         ),
         use_container_width=TABLES_USE_CONTAINER_WIDTH,
         hide_index=True,
-        column_config=PINNED_CONCEPTO,
+        column_config=col_cfg(scols),
     )
 
 def render_section(title, key, section_data, scols, selected):
@@ -301,7 +299,7 @@ def render_section(title, key, section_data, scols, selected):
             total_row_style(total_row, list(scols) + ["SUBTOTAL"]),
             use_container_width=TABLES_USE_CONTAINER_WIDTH,
             hide_index=True,
-            column_config=PINNED_CONCEPTO,
+            column_config=col_cfg(scols),
         )
 
         all_results.extend(sg_results)
@@ -353,7 +351,7 @@ st.dataframe(
     ),
     use_container_width=TABLES_USE_CONTAINER_WIDTH,
     hide_index=True,
-    column_config=PINNED_CONCEPTO,
+    column_config=col_cfg(SCOLS),
 )
 
 st.markdown('<div class="section-hdr">FCF SIN FINANCIAMIENTO</div>', unsafe_allow_html=True)
