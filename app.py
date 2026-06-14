@@ -18,7 +18,7 @@ PAGE_PADDING_RIGHT = "1rem"  # margen derecho del contenido
 
 # Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
 # Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
-TABLE_BOX_WIDTH = 900
+TABLE_BOX_WIDTH = 1000
 
 # ===== ANCHO DE ETIQUETAS DE TÍTULO (edita estos valores) =====
 # Por defecto se ajustan al ancho de su tabla correspondiente (TABLE_BOX_WIDTH).
