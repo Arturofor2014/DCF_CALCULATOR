@@ -67,7 +67,7 @@ section[data-testid="stSidebar"] {{ display: none; }}
 # ===== ANCHOS DE TABLAS (edita estos valores) =====
 TABLES_USE_FIXED_WIDTH = True   # True = usar anchos fijos definidos abajo, False = ocupar todo el ancho disponible
 CONCEPT_COL_WIDTH = True        # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
-YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
+YEAR_COL_WIDTH    = True         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
 
 METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
 
