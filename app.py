@@ -11,14 +11,14 @@ from datetime import datetime
 st.set_page_config(page_title="DCF Project Calculator", layout="wide", page_icon="📊")
 
 # ===== MÁRGENES / PADDING DE LA APP (edita estos valores) =====
-PAGE_MAX_WIDTH    = "60vw"   # ancho máximo del contenido (acepta vw, px, %, etc.)
+PAGE_MAX_WIDTH    = "90vw"   # ancho máximo del contenido (acepta vw, px, %, etc.)
 PAGE_PADDING_TOP  = "1.5rem" # espacio arriba, antes del título
 PAGE_PADDING_LEFT  = "1rem"  # margen izquierdo del contenido
 PAGE_PADDING_RIGHT = "1rem"  # margen derecho del contenido
 
 # Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
 # Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
-TABLE_BOX_WIDTH = 950
+TABLE_BOX_WIDTH = 1000
 
 # ===== ANCHO DE ETIQUETAS DE TÍTULO (edita estos valores) =====
 # Por defecto se ajustan al ancho de su tabla correspondiente (TABLE_BOX_WIDTH).
@@ -65,7 +65,7 @@ section[data-testid="stSidebar"] {{ display: none; }}
 """, unsafe_allow_html=True)
 
 # ===== ANCHOS DE TABLAS (edita estos valores) =====
-TABLES_USE_FIXED_WIDTH = True   # True = usar anchos fijos definidos abajo, False = ocupar todo el ancho disponible
+TABLES_USE_FIXED_WIDTH = False   # True = usar anchos fijos definidos abajo, False = ocupar todo el ancho disponible
 CONCEPT_COL_WIDTH = 220         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
 YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
 
@@ -583,7 +583,7 @@ def build_pdf():
     buf = BytesIO()
     pdf.output(buf)
     buf.seek(0)
-    return buf.read()
+  return bytes(pdf.output())
 
 if fmt_choice == "Excel (.xlsx)":
     st.download_button("⬇️ Descargar Excel", build_excel(),
