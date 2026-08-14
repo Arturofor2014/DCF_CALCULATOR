@@ -16,14 +16,11 @@ PAGE_PADDING_TOP  = "1.5rem" # espacio arriba, antes del título
 PAGE_PADDING_LEFT  = "1rem"  # margen izquierdo del contenido
 PAGE_PADDING_RIGHT = "1rem"  # margen derecho del contenido
 
-# Ancho visible (caja) de las tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF, en px.
-# Si el contenido (CONCEPT_COL_WIDTH + columnas de años) es más ancho que esto, aparece scroll horizontal.
-TABLE_BOX_WIDTH = 1000
-
-# ===== ANCHO DE ETIQUETAS DE TÍTULO (edita estos valores) =====
-# Por defecto se ajustan al ancho de su tabla correspondiente (TABLE_BOX_WIDTH).
-SECTION_HDR_WIDTH  = f"{TABLE_BOX_WIDTH}px"  # ancho de los títulos de sección (INFLOWS, OUTFLOWS, TOTALES, etc.)
-SUBGROUP_HDR_WIDTH = f"{TABLE_BOX_WIDTH}px"  # ancho de las etiquetas de subgrupo (REVENUE, COSTS & EXPENSES, etc.)
+# ===== ANCHO DE ETIQUETAS DE TÍTULO =====
+# Las tablas ocupan el 100% del ancho disponible (use_container_width), así que
+# los títulos usan el mismo 100% para quedar alineados con ellas.
+SECTION_HDR_WIDTH  = "100%"  # ancho de los títulos de sección (INFLOWS, OUTFLOWS, TOTALES, etc.)
+SUBGROUP_HDR_WIDTH = "100%"  # ancho de las etiquetas de subgrupo (REVENUE, COSTS & EXPENSES, etc.)
 
 st.markdown(f"""
 <style>
@@ -71,13 +68,13 @@ YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px
 
 METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
 
-st.markdown(f"""
+st.markdown("""
 <style>
 div[data-testid="stDataFrame"],
 div[data-testid="stDataFrame"] > div,
-.stDataFrameGlideDataEditor {{
-    width: {TABLE_BOX_WIDTH}px !important;
-}}
+.stDataFrameGlideDataEditor {
+    width: 100% !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -170,6 +167,13 @@ def fmt_usd(v):
         return "—"
     return f"(${abs(v):,.0f})" if v < 0 else f"${v:,.0f}"
 
+def _pdf_safe(s):
+    # Helvetica (fuente core del PDF) solo soporta Latin-1; cualquier
+    # carácter fuera de ese rango (tipografía "inteligente" pegada desde
+    # Word/Excel, emojis, etc.) hace que fpdf lance una excepción y la
+    # descarga falle en silencio. Lo sustituimos en vez de reventar.
+    return str(s).encode("latin-1", "replace").decode("latin-1")
+
 # Sub-group visual grouping (purely display — data structure unchanged)
 CONCEPT_SUBGROUP = {
     "Rent":       "REVENUE",
@@ -202,7 +206,10 @@ TABLES_USE_CONTAINER_WIDTH = not TABLES_USE_FIXED_WIDTH
 
 def col_cfg(scols):
     cfg = {"Concepto": st.column_config.TextColumn("Concepto", width=_CONCEPT_W, pinned=True)}
-    cfg.update({y: st.column_config.NumberColumn(y, format="$%,.0f", width=_YEAR_W) for y in scols})
+    cfg.update({
+        y: st.column_config.NumberColumn(f"Año {i + 1}", format="$%,.0f", width=_YEAR_W)
+        for i, y in enumerate(scols)
+    })
     cfg["SUBTOTAL"] = st.column_config.NumberColumn("SUBTOTAL", format="$%,.0f", width=_YEAR_W)
     return cfg
 
@@ -455,8 +462,9 @@ def build_excel():
         ts = datetime.now().strftime("%d/%m/%Y  %H:%M")
         ws.merge_range(0, 0, 0, ncols, f"Generado: {ts}", date_fmt)
         ws.merge_range(1, 0, 1, ncols, f"DCF PROJECT — {selected.upper()}   |   Closing", title_fmt)
+        year_labels = [f"Año {i + 1}" for i in range(len(SCOLS))]
         ws.write(2, 0, "Concepto", hdr_fmt)
-        for c, h in enumerate(SCOLS + ["SUBTOTAL"], 1):
+        for c, h in enumerate(year_labels + ["SUBTOTAL"], 1):
             ws.write(2, c, h, hdr_fmt)
 
         rn = 3
@@ -507,13 +515,13 @@ def build_pdf():
 
     col_w   = max(18, int(360 / (N + 2)))
     label_w = 50
-    hdrs    = SCOLS + ["SUBTOTAL"]
+    hdrs    = [f"Año {i + 1}" for i in range(len(SCOLS))] + ["SUBTOTAL"]
 
     ts = datetime.now().strftime("%d/%m/%Y  %H:%M")
     pdf.set_font("Helvetica", "I", 8); pdf.set_text_color(136, 136, 136)
     pdf.cell(0, 5, f"Generado: {ts}", ln=True, align="C")
     pdf.set_font("Helvetica", "B", 16); pdf.set_text_color(*BLUE)
-    pdf.cell(0, 10, f"DCF PROJECT - {selected.upper()}  |  Closing", ln=True, align="C")
+    pdf.cell(0, 10, _pdf_safe(f"DCF PROJECT - {selected.upper()}  |  Closing"), ln=True, align="C")
     pdf.set_text_color(*TEXT)
     pdf.ln(3)
 
@@ -533,7 +541,7 @@ def build_pdf():
 
     def draw_row(label, vals):
         pdf.set_fill_color(*LBLUE); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "", 7)
-        pdf.cell(label_w, 6, f"  {label}", border=1, fill=True)
+        pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
             pdf.cell(col_w, 6, fc(v), border=1, align="R")
         pdf.cell(col_w, 6, fc(sum(vals)), border=1, align="R", fill=True)
@@ -541,7 +549,7 @@ def build_pdf():
 
     def draw_fcf(label, vals, sub):
         pdf.set_fill_color(219, 234, 254); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
-        pdf.cell(label_w, 6, f"  {label}", border=1, fill=True)
+        pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
             pdf.cell(col_w, 6, fc(v), border=1, align="R")
         pdf.cell(col_w, 6, fc(sub), border=1, align="R", fill=True)
@@ -599,10 +607,15 @@ if fmt_choice == "Excel (.xlsx)":
         type="primary"
     )
 else:
-    st.download_button(
-        "⬇️ Descargar PDF",
-        build_pdf(),
-        file_name=f"DCF_{selected}.pdf",
-        mime="application/pdf",
-        type="primary"
-    )
+    try:
+        pdf_data = build_pdf()
+    except Exception as e:
+        st.error(f"No se pudo generar el PDF: {e}")
+    else:
+        st.download_button(
+            "⬇️ Descargar PDF",
+            pdf_data,
+            file_name=f"DCF_{selected}.pdf",
+            mime="application/pdf",
+            type="primary"
+        )
