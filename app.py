@@ -130,7 +130,7 @@ def load_defaults(project_name: str):
             sections[current].append((concept, vals))
 
     DEFAULTS = {
-        "INFLOWS":   ["Rent", "Sales"],
+        "INFLOWS":   ["Revenue 1", "Revenue 2"],
         "OUTFLOWS":  ["CAPEX", "OPEX", "Rent Comm", "Sales Comm"],
         "FINANCING": ["Debt Draw", "Debt Repay"],
     }
