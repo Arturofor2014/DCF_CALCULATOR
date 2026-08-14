@@ -580,17 +580,25 @@ def build_pdf():
             pdf.cell(50, 6, val, border=1, align="R", fill=True)
         pdf.ln()
 
-    buf = BytesIO()
+      buf = BytesIO()
     pdf.output(buf)
     buf.seek(0)
-  return bytes(pdf.output())
+    return buf.read()
+
 
 if fmt_choice == "Excel (.xlsx)":
-    st.download_button("⬇️ Descargar Excel", build_excel(),
-                       file_name=f"DCF_{selected}.xlsx",
-                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                       type="primary")
+    st.download_button(
+        "⬇️ Descargar Excel",
+        build_excel(),
+        file_name=f"DCF_{selected}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary"
+    )
 else:
-    st.download_button("⬇️ Descargar PDF", build_pdf(),
-                       file_name=f"DCF_{selected}.pdf",
-                       mime="application/pdf", type="primary")
+    st.download_button(
+        "⬇️ Descargar PDF",
+        build_pdf(),
+        file_name=f"DCF_{selected}.pdf",
+        mime="application/pdf",
+        type="primary"
+    )
