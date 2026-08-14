@@ -66,8 +66,6 @@ TABLES_USE_FIXED_WIDTH = False   # True = usar anchos fijos definidos abajo, Fal
 CONCEPT_COL_WIDTH = 220         # ancho columna "Concepto" en px (tablas INFLOWS/OUTFLOWS/FINANCING/TOTALES/FCF)
 YEAR_COL_WIDTH    = 100         # ancho de cada columna de año y SUBTOTAL en px (mismas tablas)
 
-METRICS_TABLE_WIDTH = "48%"     # ancho de la tabla de métricas (acepta "%" o "px", ej. "600px")
-
 st.markdown("""
 <style>
 div[data-testid="stDataFrame"],
@@ -408,7 +406,7 @@ with metrics_container:
 
     def fmt_metric(key, val):
         k = key.upper()
-        if k in PCT_KEYS or any(x in k for x in ("IRR", "RATE", "ROI", "ROE", "CASH")):
+        if k in PCT_KEYS or any(x in k for x in ("IRR", "RATE", "ROI", "ROE", "CASH-ON-CASH")):
             return f"{val*100:.2f}%"
         if k in MULT_KEYS or "MULTIPLE" in k:
             return f"{val:.3f}"
@@ -424,17 +422,24 @@ with metrics_container:
         for i, (d, v) in enumerate(rows)
     )
 
-    st.markdown(f"""
-    <table style="width:{METRICS_TABLE_WIDTH};border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
-      <thead>
-        <tr style="background:#F5F0C8">
-          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">DESCRIPTION</th>
-          <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
-        </tr>
-      </thead>
-      <tbody>{body}</tbody>
-    </table>
-    """, unsafe_allow_html=True)
+    col_table, col_irr, col_van = st.columns([2, 1, 1])
+    with col_table:
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
+          <thead>
+            <tr style="background:#F5F0C8">
+              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">DESCRIPTION</th>
+              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
+            </tr>
+          </thead>
+          <tbody>{body}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
+    with col_irr:
+        irr_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
+        st.markdown(kpi_card("IRR", irr_label, "Con financiamiento"), unsafe_allow_html=True)
+    with col_van:
+        st.markdown(kpi_card("VAN", fmt_usd(npv_fin), "Con financiamiento", green=True), unsafe_allow_html=True)
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
