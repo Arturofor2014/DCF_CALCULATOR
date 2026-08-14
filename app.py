@@ -175,8 +175,8 @@ def _pdf_safe(s):
 
 # Sub-group visual grouping (purely display — data structure unchanged)
 CONCEPT_SUBGROUP = {
-    "Rent":       "REVENUE",
-    "Sales":      "REVENUE",
+    "Revenue 1":       "REVENUE",
+    "Revenue 2":      "REVENUE",
     "CAPEX":      "COSTS & EXPENSES",
     "OPEX":       "COSTS & EXPENSES",
     "Rent Comm":  "COMMISSIONS",
