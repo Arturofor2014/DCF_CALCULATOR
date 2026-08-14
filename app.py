@@ -580,8 +580,12 @@ def build_pdf():
             pdf.cell(50, 6, val, border=1, align="R", fill=True)
         pdf.ln()
 
-      buf = BytesIO()
-    pdf.output(buf)
+    pdf_bytes = pdf.output(dest="S")
+    if isinstance(pdf_bytes, str):
+        pdf_bytes = pdf_bytes.encode("latin-1")
+    else:
+        pdf_bytes = bytes(pdf_bytes)
+    buf = BytesIO(pdf_bytes)
     buf.seek(0)
     return buf.read()
 
