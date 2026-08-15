@@ -130,7 +130,7 @@ def load_defaults(project_name: str):
             sections[current].append((concept, vals))
 
     DEFAULTS = {
-        "INFLOWS":   ["Revenue 1", "Revenue 2"],
+        "INFLOWS":   ["Rent", "Sales"],
         "OUTFLOWS":  ["CAPEX", "OPEX", "Rent Comm", "Sales Comm"],
         "FINANCING": ["Debt Draw", "Debt Repay"],
     }
@@ -175,8 +175,8 @@ def _pdf_safe(s):
 
 # Sub-group visual grouping (purely display — data structure unchanged)
 CONCEPT_SUBGROUP = {
-    "Revenue 1":       "REVENUE",
-    "Revenue 2":      "REVENUE",
+    "Rent":       "REVENUE",
+    "Sales":      "REVENUE",
     "CAPEX":      "COSTS & EXPENSES",
     "OPEX":       "COSTS & EXPENSES",
     "Rent Comm":  "COMMISSIONS",
@@ -406,9 +406,12 @@ with metrics_container:
 
     def fmt_metric(key, val):
         k = key.upper()
-        if k in PCT_KEYS or any(x in k for x in ("IRR", "RATE", "ROI", "ROE", "CASH-ON-CASH")):
+        # Comparar por palabra completa, no por subcadena: "RATE" no debe
+        # coincidir dentro de "GENERATED", ni "CASH" dentro de "NET CASH GENERATED".
+        words = k.replace("-", " ").split()
+        if k in PCT_KEYS or "CASH-ON-CASH" in k or any(w in ("IRR", "RATE", "ROI", "ROE") for w in words):
             return f"{val*100:.2f}%"
-        if k in MULT_KEYS or "MULTIPLE" in k:
+        if k in MULT_KEYS or "MULTIPLE" in words:
             return f"{val:.3f}"
         return fmt_usd(val)
 
