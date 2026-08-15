@@ -130,8 +130,8 @@ def load_defaults(project_name: str):
             sections[current].append((concept, vals))
 
     DEFAULTS = {
-        "INFLOWS":   ["Rent", "Sales"],
-        "OUTFLOWS":  ["CAPEX", "OPEX", "Rent Comm", "Sales Comm"],
+        "INFLOWS":   ["Revenue 1", "Revenue 2"],
+        "OUTFLOWS":  ["CAPEX", "OPEX", "Comm 1", "Comm 2"],
         "FINANCING": ["Debt Draw", "Debt Repay"],
     }
 
@@ -175,12 +175,12 @@ def _pdf_safe(s):
 
 # Sub-group visual grouping (purely display — data structure unchanged)
 CONCEPT_SUBGROUP = {
-    "Rent":       "REVENUE",
-    "Sales":      "REVENUE",
+    "Revenue 1":  "REVENUE",
+    "Revenue 2":  "REVENUE",
     "CAPEX":      "COSTS & EXPENSES",
     "OPEX":       "COSTS & EXPENSES",
-    "Rent Comm":  "COMMISSIONS",
-    "Sales Comm": "COMMISSIONS",
+    "Comm 1":     "COMMISSIONS",
+    "Comm 2":     "COMMISSIONS",
 }
 SEC_SUBGROUPS = {
     "INFLOWS":   ["REVENUE"],
