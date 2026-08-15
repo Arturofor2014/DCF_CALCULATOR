@@ -456,6 +456,9 @@ def build_excel():
         lbl_fmt  = wb_out.add_format({"bold": True, "bg_color": "#EEF2FF", "border": 1, "indent": 1})
         num_fmt  = wb_out.add_format({"num_format": '#,##0;(#,##0)', "border": 1, "align": "right"})
         tot_fmt  = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#DBEAFE", "align": "right"})
+        tot_out_fmt     = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#FEE2E2", "align": "right"})
+        lbl_tot_in_fmt  = wb_out.add_format({"bold": True, "bg_color": "#DBEAFE", "border": 1, "indent": 1})
+        lbl_tot_out_fmt = wb_out.add_format({"bold": True, "bg_color": "#FEE2E2", "border": 1, "indent": 1})
         pct_fmt  = wb_out.add_format({"num_format": '0.00%', "border": 1, "align": "right"})
         title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#0052FF"})
         sub_fmt  = wb_out.add_format({"bold": True, "bg_color": "#1E3A5F", "font_color": "#FFFFFF", "border": 1, "indent": 1})
@@ -478,7 +481,7 @@ def build_excel():
 
         rn = 3
 
-        def write_sec(title, rows):
+        def write_sec(title, rows, total=None, total_fmts=(lbl_tot_in_fmt, tot_fmt)):
             nonlocal rn
             ws.merge_range(rn, 0, rn, ncols, title, sub_fmt)
             rn += 1
@@ -488,10 +491,19 @@ def build_excel():
                     ws.write(rn, c, v, num_fmt)
                 ws.write(rn, len(vals) + 1, sum(vals), tot_fmt)
                 rn += 1
+            if total is not None:
+                t_label, t_vals = total
+                lbl_f, val_f = total_fmts
+                ws.write(rn, 0, t_label, lbl_f)
+                for c, v in enumerate(t_vals, 1):
+                    ws.write(rn, c, v, val_f)
+                ws.write(rn, len(t_vals) + 1, sum(t_vals), val_f)
+                rn += 1
             rn += 1
 
-        write_sec("INFLOWS",            inflows)
-        write_sec("OUTFLOWS",           outflows)
+        write_sec("INFLOWS",  inflows,  total=("TOTAL INFLOWS",  inflows_yr))
+        write_sec("OUTFLOWS", outflows, total=("TOTAL OUTFLOWS", outflows_yr),
+                   total_fmts=(lbl_tot_out_fmt, tot_out_fmt))
         write_sec("FCF FROM FINANCING", financing)
         write_sec("FREE CASH FLOW", [
             ("FCF (Sin Financiamiento)", fcf_no_fin),
@@ -556,8 +568,8 @@ def build_pdf():
         pdf.cell(col_w, 6, fc(sum(vals)), border=1, align="R", fill=True)
         pdf.ln()
 
-    def draw_fcf(label, vals, sub):
-        pdf.set_fill_color(219, 234, 254); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
+    def draw_fcf(label, vals, sub, fill=(219, 234, 254)):
+        pdf.set_fill_color(*fill); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
             pdf.cell(col_w, 6, fc(v), border=1, align="R")
@@ -567,9 +579,11 @@ def build_pdf():
     draw_header()
     draw_sec_title("INFLOWS")
     for lbl, vals in inflows:  draw_row(lbl, vals)
+    draw_fcf("TOTAL INFLOWS", inflows_yr, sum(inflows_yr))
     pdf.ln(2)
     draw_sec_title("OUTFLOWS")
     for lbl, vals in outflows: draw_row(lbl, vals)
+    draw_fcf("TOTAL OUTFLOWS", outflows_yr, sum(outflows_yr), fill=(254, 226, 226))
     pdf.ln(2)
     draw_sec_title("FCF FROM FINANCING")
     for lbl, vals in financing: draw_row(lbl, vals)
