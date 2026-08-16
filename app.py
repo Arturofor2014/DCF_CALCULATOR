@@ -450,7 +450,6 @@ with metrics_container:
 
     rows = [
         ("SALES",                        sales_total,   fmt_usd(sales_total)),
-        ("Revenue CAGR",                 revenue_cagr,  f"{revenue_cagr*100:+.2f}% / año" if revenue_cagr is not None else "—"),
         ("CAPEX",                        capex_amount,  fmt_usd(capex_amount)),
         ("OPEX",                         opex_total,    fmt_usd(opex_total)),
         ("NET CASH GENERATED",           net_cash_generated, fmt_usd(net_cash_generated)),
@@ -498,6 +497,11 @@ with metrics_container:
             st.markdown(kpi_card("TIR Con Financiamiento", irr_fin_label), unsafe_allow_html=True)
         with row_fin_van:
             st.markdown(kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
+
+        cagr_label = f"{revenue_cagr*100:+.2f}%" if revenue_cagr is not None else "—"
+        row_cagr, _ = st.columns(2)
+        with row_cagr:
+            st.markdown(kpi_card("Revenue CAGR", cagr_label, "por año"), unsafe_allow_html=True)
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
