@@ -44,15 +44,15 @@ section[data-testid="stSidebar"] {{ display: none; }}
 .kpi-sub   {{ font-size: 10px; color: #999; }}
 .kpi-val-green {{ font-size: 20px; font-weight: 900; color: #1F2937; margin: 6px 0 3px; }}
 .section-hdr {{
-    font-size: 13px; font-weight: 800; color: #374151;
+    font-size: 13px; font-weight: 800; color: #333333;
     letter-spacing: 2px; text-transform: uppercase;
-    border-left: 4px solid #374151; padding-left: 10px; margin: 20px 0 6px;
+    background: #CABD91; border-left: 4px solid #CABD91; padding: 6px 10px; margin: 20px 0 6px;
     width: {SECTION_HDR_WIDTH}; box-sizing: border-box;
 }}
 .subgroup-hdr {{
-    background: #E5E7EB; padding: 5px 12px 5px 16px;
+    background: #CABD91; padding: 5px 12px 5px 16px;
     font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
-    color: #374151; border-left: 4px solid #9CA3AF;
+    color: #333333; border-left: 4px solid #CABD91;
     margin: 6px 0 1px 0;
     width: {SUBGROUP_HDR_WIDTH}; box-sizing: border-box;
 }}
@@ -200,7 +200,7 @@ def col_cfg(scols):
 
 def total_row_style(df, num_cols):
     return df.style.apply(
-        lambda r: ["background-color:#374151;color:white;font-weight:bold"] * len(r), axis=1
+        lambda r: ["background-color:#FEFBDF;color:#333333;font-weight:bold"] * len(r), axis=1
     ).format(lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"), subset=num_cols)
 
 def sum_by_year(section, n):
@@ -219,7 +219,7 @@ def render_fcf_row(label, year_vals, subtotal, scols):
     df = pd.DataFrame([row])
     st.dataframe(
         df.style.apply(
-            lambda r: ["background-color:#E5E7EB;color:#111827;font-weight:bold"] * len(r), axis=1
+            lambda r: ["background-color:#FEFBDF;color:#333333;font-weight:bold"] * len(r), axis=1
         ).format(
             lambda x: f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}",
             subset=scols + ["SUBTOTAL"],
@@ -365,8 +365,7 @@ totals_df = pd.DataFrame([
 st.dataframe(
     totals_df.style.apply(
         lambda r: [
-            "background-color:#F3F4F6;color:#111827;font-weight:bold" if r["Concepto"].endswith("INFLOWS")
-            else "background-color:#D1D5DB;color:#111827;font-weight:bold"
+            "background-color:#FEFBDF;color:#333333;font-weight:bold"
         ] * len(r), axis=1
     ).format(
         lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"),
@@ -445,9 +444,9 @@ with metrics_container:
     ]
 
     body = "".join(
-        f'<tr style="background:{"#FAFAFA" if i%2==0 else "#FFFFFF"}">'
-        f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:#111827;border-bottom:1px solid #eee">{d}</td>'
-        f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:#374151;border-bottom:1px solid #eee">{v}</td>'
+        f'<tr style="background:#EFF8FB">'
+        f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:#333333;border-bottom:1px solid #eee">{d}</td>'
+        f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:#333333;border-bottom:1px solid #eee">{v}</td>'
         f'</tr>'
         for i, (d, v) in enumerate(rows)
     )
@@ -457,9 +456,9 @@ with metrics_container:
         st.markdown(f"""
         <table style="width:100%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
           <thead>
-            <tr style="background:#E5E7EB">
-              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">DESCRIPTION</th>
-              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
+            <tr style="background:#CABD91">
+              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333333;border-bottom:2px solid #ccc">DESCRIPTION</th>
+              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
             </tr>
           </thead>
           <tbody>{body}</tbody>
@@ -489,15 +488,15 @@ def build_excel():
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
         wb_out   = writer.book
-        hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": "#374151", "font_color": "#FFFFFF", "border": 1, "align": "center"})
-        lbl_fmt  = wb_out.add_format({"bold": True, "bg_color": "#F3F4F6", "border": 1, "indent": 1})
-        num_fmt  = wb_out.add_format({"num_format": '#,##0;(#,##0)', "border": 1, "align": "right"})
-        tot_fmt  = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#F3F4F6", "align": "right"})
-        lbl_total_fmt = wb_out.add_format({"bold": True, "bg_color": "#E5E7EB", "border": 1, "indent": 1})
-        val_total_fmt = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#E5E7EB", "align": "right"})
-        pct_fmt  = wb_out.add_format({"num_format": '0.00%', "border": 1, "bg_color": "#E5E7EB", "align": "right"})
-        title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#374151"})
-        sub_fmt  = wb_out.add_format({"bold": True, "bg_color": "#1F2937", "font_color": "#FFFFFF", "border": 1, "indent": 1})
+        hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": "#CABD91", "font_color": "#333333", "border": 1, "align": "center"})
+        lbl_fmt  = wb_out.add_format({"bold": True, "bg_color": "#EFF8FB", "border": 1, "indent": 1})
+        num_fmt  = wb_out.add_format({"num_format": '#,##0;(#,##0)', "border": 1, "align": "right", "bg_color": "#EFF8FB"})
+        tot_fmt  = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#FEFBDF", "align": "right"})
+        lbl_total_fmt = wb_out.add_format({"bold": True, "bg_color": "#FEFBDF", "border": 1, "indent": 1})
+        val_total_fmt = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#FEFBDF", "align": "right"})
+        pct_fmt  = wb_out.add_format({"num_format": '0.00%', "border": 1, "bg_color": "#FEFBDF", "align": "right"})
+        title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#333333"})
+        sub_fmt  = wb_out.add_format({"bold": True, "bg_color": "#CABD91", "font_color": "#333333", "border": 1, "indent": 1})
         date_fmt = wb_out.add_format({"italic": True, "font_size": 10, "font_color": "#888888"})
 
         ws = wb_out.add_worksheet("DCF PROJECT")
@@ -584,9 +583,9 @@ def build_pdf():
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(True, margin=15)
 
-    BLUE  = (55, 65, 81);  LBLUE = (243, 244, 246)
-    DARK  = (31, 41, 55);  WHITE = (255, 255, 255); TEXT = (17, 24, 39)
-    GRAY  = (229, 231, 235)
+    BLUE  = (202, 189, 145);  LBLUE = (239, 248, 251)
+    DARK  = (202, 189, 145);  WHITE = (255, 255, 255); TEXT = (51, 51, 51)
+    GRAY  = (254, 251, 223)
 
     col_w   = max(18, int(360 / (N + 2)))
     label_w = 50
@@ -595,20 +594,20 @@ def build_pdf():
     ts = datetime.now().strftime("%d/%m/%Y  %H:%M")
     pdf.set_font("Helvetica", "I", 8); pdf.set_text_color(136, 136, 136)
     pdf.cell(0, 5, f"Generado: {ts}", ln=True, align="C")
-    pdf.set_font("Helvetica", "B", 16); pdf.set_text_color(*BLUE)
+    pdf.set_font("Helvetica", "B", 16); pdf.set_text_color(*TEXT)
     pdf.cell(0, 10, _pdf_safe(f"DCF PROJECT - {selected.upper()}  |  Closing"), ln=True, align="C")
     pdf.set_text_color(*TEXT)
     pdf.ln(3)
 
     def draw_header():
-        pdf.set_fill_color(*BLUE); pdf.set_text_color(*WHITE); pdf.set_font("Helvetica", "B", 7)
+        pdf.set_fill_color(*BLUE); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 7, "Concepto", border=1, align="C", fill=True)
         for h in hdrs:
             pdf.cell(col_w, 7, h, border=1, align="C", fill=True)
         pdf.ln()
 
     def draw_sec_title(t):
-        pdf.set_fill_color(*DARK); pdf.set_text_color(*WHITE); pdf.set_font("Helvetica", "B", 8)
+        pdf.set_fill_color(*DARK); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 8)
         pdf.cell(label_w + col_w * len(hdrs), 6, f"  {t}", border=1, fill=True, ln=True)
 
     def fc(v):
@@ -622,7 +621,7 @@ def build_pdf():
         pdf.cell(col_w, 6, fc(sum(vals)), border=1, align="R", fill=True)
         pdf.ln()
 
-    def draw_fcf(label, vals, sub, fill=(243, 244, 246)):
+    def draw_fcf(label, vals, sub, fill=(254, 251, 223)):
         pdf.set_fill_color(*fill); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
@@ -650,7 +649,7 @@ def build_pdf():
     draw_fcf("FCF (Con Financiamiento)", fcf_with_fin, npv_fin, fill=GRAY)
     pdf.ln(5)
 
-    pdf.set_fill_color(*DARK); pdf.set_text_color(*WHITE); pdf.set_font("Helvetica", "B", 8)
+    pdf.set_fill_color(*DARK); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 8)
     pdf.cell(130, 7, "  INVESTMENT RETURNS", border=1, fill=True, ln=True)
     for lbl, val in [
         ("Tasa de Descuento",      f"{discount_rate*100:.2f}%"),
