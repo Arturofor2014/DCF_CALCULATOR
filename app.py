@@ -131,7 +131,7 @@ def load_defaults(project_name: str):
 
     DEFAULTS = {
         "INFLOWS":   ["Revenue 1", "Revenue 2"],
-        "OUTFLOWS":  ["CAPEX", "OPEX", "Comm 1", "Comm 2"],
+        "OUTFLOWS":  ["CAPEX", "OPEX", "Comm 1", "Comm 2", "Otro Gasto 1", "Otro Gasto 2"],
         "FINANCING": ["Debt Draw", "Principal Repayment", "Interest"],
     }
 
@@ -170,12 +170,12 @@ CONCEPT_SUBGROUP = {
 }
 SEC_SUBGROUPS = {
     "INFLOWS":   ["REVENUE"],
-    "OUTFLOWS":  ["COSTS & EXPENSES", "COMMISSIONS", "TAXES"],
+    "OUTFLOWS":  ["COSTS & EXPENSES", "COMMISSIONS", "OTROS"],
     "FINANCING": ["FCF FROM FINANCING"],
 }
 SEC_DEFAULT_SG = {
     "INFLOWS":   "REVENUE",
-    "OUTFLOWS":  "TAXES",
+    "OUTFLOWS":  "OTROS",
     "FINANCING": "FCF FROM FINANCING",
 }
 
@@ -211,11 +211,11 @@ def _row_style_fn(r):
     styles = []
     for col in r.index:
         if col == "Concepto":
-            styles.append(f"background-color:#CABD91;color:{lbl_color};font-weight:bold")
+            styles.append(f"background-color:#FEFBDF;color:{lbl_color};font-weight:bold")
         else:
             val = r[col]
             color = CLR_NEG if (isinstance(val, (int, float)) and val < 0) else CLR_POS
-            styles.append(f"background-color:#CABD91;color:{color};font-weight:bold")
+            styles.append(f"background-color:#FEFBDF;color:{color};font-weight:bold")
     return styles
 
 def total_row_style(df, num_cols):
@@ -509,7 +509,7 @@ def build_excel():
         wb_out   = writer.book
 
         BG_HEADER = "#FEFBDF"   # Encabezados
-        BG_SUB    = "#CABD91"   # Subtotales
+        BG_SUB    = "#FEFBDF"   # Subtotales
         BG_REG    = "#FFFFFF"   # Filas regulares
 
         hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": BG_HEADER, "font_color": "#333333", "border": 1, "align": "center"})
@@ -556,7 +556,7 @@ def build_excel():
         ncols = N + 1
         ts = datetime.now().strftime("%d/%m/%Y  %H:%M")
         ws.merge_range(0, 0, 0, ncols, f"Generado: {ts}", date_fmt)
-        ws.merge_range(1, 0, 1, ncols, f"DCF PROJECT — {selected.upper()}   |   Closing", title_fmt)
+        ws.merge_range(1, 0, 1, ncols, f"Modelo dinámico de valoración y análisis financiero — {selected.upper()}", title_fmt)
         year_labels = [f"Año {i + 1}" for i in range(len(SCOLS))]
         ws.write(2, 0, "Concepto", hdr_fmt)
         for c, h in enumerate(year_labels + ["SUBTOTAL"], 1):
@@ -640,7 +640,7 @@ def build_pdf():
     pdf.set_auto_page_break(True, margin=15)
 
     HDR = (254, 251, 223)   # Encabezados #FEFBDF
-    SUB = (202, 189, 145)   # Subtotales  #CABD91
+    SUB = (254, 251, 223)   # Subtotales  #FEFBDF
     REG = (255, 255, 255)   # Filas regulares (blanco)
     TEXT = (51, 51, 51)     # texto neutro para encabezados
 
@@ -658,7 +658,7 @@ def build_pdf():
     pdf.set_font("Helvetica", "I", 8); pdf.set_text_color(136, 136, 136)
     pdf.cell(0, 5, f"Generado: {ts}", ln=True, align="C")
     pdf.set_font("Helvetica", "B", 16); pdf.set_text_color(*TEXT)
-    pdf.cell(0, 10, _pdf_safe(f"DCF PROJECT - {selected.upper()}  |  Closing"), ln=True, align="C")
+    pdf.cell(0, 10, _pdf_safe(f"Modelo dinámico de valoración y análisis financiero - {selected.upper()}"), ln=True, align="C")
     pdf.set_text_color(*TEXT)
     pdf.ln(3)
 
