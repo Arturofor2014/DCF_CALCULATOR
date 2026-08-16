@@ -46,13 +46,13 @@ section[data-testid="stSidebar"] {{ display: none; }}
 .section-hdr {{
     font-size: 13px; font-weight: 800; color: #333333;
     letter-spacing: 2px; text-transform: uppercase;
-    background: #CABD91; border-left: 4px solid #CABD91; padding: 6px 10px; margin: 20px 0 6px;
+    background: #FEFBDF; border-left: 4px solid #FEFBDF; padding: 6px 10px; margin: 20px 0 6px;
     width: {SECTION_HDR_WIDTH}; box-sizing: border-box;
 }}
 .subgroup-hdr {{
-    background: #CABD91; padding: 5px 12px 5px 16px;
+    background: #FEFBDF; padding: 5px 12px 5px 16px;
     font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
-    color: #333333; border-left: 4px solid #CABD91;
+    color: #333333; border-left: 4px solid #FEFBDF;
     margin: 6px 0 1px 0;
     width: {SUBGROUP_HDR_WIDTH}; box-sizing: border-box;
 }}
@@ -198,10 +198,30 @@ def col_cfg(scols):
     cfg["SUBTOTAL"] = st.column_config.NumberColumn("SUBTOTAL", format="$%,.0f", width=_YEAR_W)
     return cfg
 
+# Colores de formato condicional: valores negativos en rojo, positivos en
+# negro; la etiqueta (columna Concepto) en azul, o en rojo si el total de
+# esa fila es negativo.
+CLR_POS   = "#000000"
+CLR_NEG   = "#DC2626"
+CLR_LABEL = "#1D4ED8"
+
+def _row_style_fn(r):
+    subtotal = r.get("SUBTOTAL", 0)
+    lbl_color = CLR_NEG if subtotal < 0 else CLR_LABEL
+    styles = []
+    for col in r.index:
+        if col == "Concepto":
+            styles.append(f"background-color:#CABD91;color:{lbl_color};font-weight:bold")
+        else:
+            val = r[col]
+            color = CLR_NEG if (isinstance(val, (int, float)) and val < 0) else CLR_POS
+            styles.append(f"background-color:#CABD91;color:{color};font-weight:bold")
+    return styles
+
 def total_row_style(df, num_cols):
-    return df.style.apply(
-        lambda r: ["background-color:#FEFBDF;color:#333333;font-weight:bold"] * len(r), axis=1
-    ).format(lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"), subset=num_cols)
+    return df.style.apply(_row_style_fn, axis=1).format(
+        lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"), subset=num_cols
+    )
 
 def sum_by_year(section, n):
     return [sum(vals[i] for _, vals in section) for i in range(n)]
@@ -218,9 +238,7 @@ def render_fcf_row(label, year_vals, subtotal, scols):
     row["SUBTOTAL"] = subtotal
     df = pd.DataFrame([row])
     st.dataframe(
-        df.style.apply(
-            lambda r: ["background-color:#FEFBDF;color:#333333;font-weight:bold"] * len(r), axis=1
-        ).format(
+        df.style.apply(_row_style_fn, axis=1).format(
             lambda x: f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}",
             subset=scols + ["SUBTOTAL"],
         ),
@@ -363,11 +381,7 @@ totals_df = pd.DataFrame([
     {"Concepto": "▶ TOTAL OUTFLOWS", **{SCOLS[i]: outflows_yr[i] for i in range(N)}, "SUBTOTAL": sum(outflows_yr)},
 ])
 st.dataframe(
-    totals_df.style.apply(
-        lambda r: [
-            "background-color:#FEFBDF;color:#333333;font-weight:bold"
-        ] * len(r), axis=1
-    ).format(
+    totals_df.style.apply(_row_style_fn, axis=1).format(
         lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"),
         subset=SCOLS + ["SUBTOTAL"],
     ),
@@ -435,28 +449,33 @@ with metrics_container:
     revenue_cagr       = safe_cagr(inflows_yr)
 
     rows = [
-        ("SALES",                        fmt_usd(sales_total)),
-        ("CRECIMIENTO PROMEDIO REVENUE", f"{revenue_cagr*100:+.2f}% / año" if revenue_cagr is not None else "—"),
-        ("CAPEX",                        fmt_usd(capex_amount)),
-        ("OPEX",                         fmt_usd(opex_total)),
-        ("NET CASH GENERATED",           fmt_usd(net_cash_generated)),
-        ("ROI",                          f"{roi:.2f}%" if roi is not None else "—"),
+        ("SALES",                        sales_total,   fmt_usd(sales_total)),
+        ("CRECIMIENTO PROMEDIO REVENUE", revenue_cagr,  f"{revenue_cagr*100:+.2f}% / año" if revenue_cagr is not None else "—"),
+        ("CAPEX",                        capex_amount,  fmt_usd(capex_amount)),
+        ("OPEX",                         opex_total,    fmt_usd(opex_total)),
+        ("NET CASH GENERATED",           net_cash_generated, fmt_usd(net_cash_generated)),
+        ("ROI",                          roi,           f"{roi:.2f}%" if roi is not None else "—"),
     ]
 
-    body = "".join(
-        f'<tr style="background:#EFF8FB">'
-        f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:#333333;border-bottom:1px solid #eee">{d}</td>'
-        f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:#333333;border-bottom:1px solid #eee">{v}</td>'
-        f'</tr>'
-        for i, (d, v) in enumerate(rows)
-    )
+    def _metric_row_html(label, raw, val):
+        neg = raw is not None and raw < 0
+        lbl_color = CLR_NEG if neg else CLR_LABEL
+        val_color = CLR_NEG if neg else CLR_POS
+        return (
+            f'<tr style="background:#FFFFFF">'
+            f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:{lbl_color};border-bottom:1px solid #eee">{label}</td>'
+            f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:{val_color};border-bottom:1px solid #eee">{val}</td>'
+            f'</tr>'
+        )
+
+    body = "".join(_metric_row_html(d, raw, v) for d, raw, v in rows)
 
     col_table, col_kpis = st.columns([2, 2])
     with col_table:
         st.markdown(f"""
         <table style="width:100%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
           <thead>
-            <tr style="background:#CABD91">
+            <tr style="background:#FEFBDF">
               <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333333;border-bottom:2px solid #ccc">DESCRIPTION</th>
               <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
             </tr>
@@ -488,16 +507,45 @@ def build_excel():
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
         wb_out   = writer.book
-        hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": "#CABD91", "font_color": "#333333", "border": 1, "align": "center"})
-        lbl_fmt  = wb_out.add_format({"bold": True, "bg_color": "#EFF8FB", "border": 1, "indent": 1})
-        num_fmt  = wb_out.add_format({"num_format": '#,##0;(#,##0)', "border": 1, "align": "right", "bg_color": "#EFF8FB"})
-        tot_fmt  = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#FEFBDF", "align": "right"})
-        lbl_total_fmt = wb_out.add_format({"bold": True, "bg_color": "#FEFBDF", "border": 1, "indent": 1})
-        val_total_fmt = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#FEFBDF", "align": "right"})
-        pct_fmt  = wb_out.add_format({"num_format": '0.00%', "border": 1, "bg_color": "#FEFBDF", "align": "right"})
+
+        BG_HEADER = "#FEFBDF"   # Encabezados
+        BG_SUB    = "#CABD91"   # Subtotales
+        BG_REG    = "#FFFFFF"   # Filas regulares
+
+        hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": BG_HEADER, "font_color": "#333333", "border": 1, "align": "center"})
         title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#333333"})
-        sub_fmt  = wb_out.add_format({"bold": True, "bg_color": "#CABD91", "font_color": "#333333", "border": 1, "indent": 1})
+        sub_fmt  = wb_out.add_format({"bold": True, "bg_color": BG_HEADER, "font_color": "#333333", "border": 1, "indent": 1})
         date_fmt = wb_out.add_format({"italic": True, "font_size": 10, "font_color": "#888888"})
+
+        # Formatos condicionales: negativo -> rojo, positivo -> negro;
+        # etiquetas (Concepto) -> azul, o rojo si el total de la fila es negativo.
+        _fmt_cache = {}
+
+        def get_num_fmt(bg, color, bold=False):
+            key = ("num", bg, color, bold)
+            if key not in _fmt_cache:
+                _fmt_cache[key] = wb_out.add_format({
+                    "num_format": '#,##0;(#,##0)', "border": 1, "align": "right",
+                    "bg_color": bg, "font_color": color, "bold": bold,
+                })
+            return _fmt_cache[key]
+
+        def get_lbl_fmt(bg, color, bold=False):
+            key = ("lbl", bg, color, bold)
+            if key not in _fmt_cache:
+                _fmt_cache[key] = wb_out.add_format({
+                    "bold": bold, "bg_color": bg, "border": 1, "indent": 1, "font_color": color,
+                })
+            return _fmt_cache[key]
+
+        def get_pct_fmt(bg, color, bold=True):
+            key = ("pct", bg, color, bold)
+            if key not in _fmt_cache:
+                _fmt_cache[key] = wb_out.add_format({
+                    "num_format": '0.00%', "border": 1, "bg_color": bg,
+                    "align": "right", "font_color": color, "bold": bold,
+                })
+            return _fmt_cache[key]
 
         ws = wb_out.add_worksheet("DCF PROJECT")
         writer.sheets["DCF PROJECT"] = ws
@@ -516,32 +564,35 @@ def build_excel():
 
         rn = 3
 
-        def write_sec(title, rows, total=None, total_fmts=(lbl_total_fmt, val_total_fmt)):
+        def write_sec(title, rows, total=None):
             nonlocal rn
             ws.merge_range(rn, 0, rn, ncols, title, sub_fmt)
             rn += 1
             for label, vals in rows:
-                ws.write(rn, 0, label, lbl_fmt)
+                row_sum = sum(vals)
+                lbl_color = CLR_NEG if row_sum < 0 else CLR_LABEL
+                ws.write(rn, 0, label, get_lbl_fmt(BG_REG, lbl_color, bold=True))
                 for c, v in enumerate(vals, 1):
-                    ws.write(rn, c, v, num_fmt)
-                ws.write(rn, len(vals) + 1, sum(vals), tot_fmt)
+                    color = CLR_NEG if v < 0 else CLR_POS
+                    ws.write(rn, c, v, get_num_fmt(BG_REG, color))
+                sub_color = CLR_NEG if row_sum < 0 else CLR_POS
+                ws.write(rn, len(vals) + 1, row_sum, get_num_fmt(BG_SUB, sub_color, bold=True))
                 rn += 1
             if total is not None:
                 t_label, t_vals = total
-                lbl_f, val_f = total_fmts
-                ws.write(rn, 0, t_label, lbl_f)
-                for c, v in enumerate(t_vals, 1):
-                    ws.write(rn, c, v, val_f)
-                ws.write(rn, len(t_vals) + 1, sum(t_vals), val_f)
-                rn += 1
+                write_total_row(t_label, t_vals)
             rn += 1
 
         def write_total_row(label, vals):
             nonlocal rn
-            ws.write(rn, 0, label, lbl_total_fmt)
+            row_sum = sum(vals)
+            lbl_color = CLR_NEG if row_sum < 0 else CLR_LABEL
+            ws.write(rn, 0, label, get_lbl_fmt(BG_SUB, lbl_color, bold=True))
             for c, v in enumerate(vals, 1):
-                ws.write(rn, c, v, val_total_fmt)
-            ws.write(rn, len(vals) + 1, sum(vals), val_total_fmt)
+                color = CLR_NEG if v < 0 else CLR_POS
+                ws.write(rn, c, v, get_num_fmt(BG_SUB, color, bold=True))
+            sub_color = CLR_NEG if row_sum < 0 else CLR_POS
+            ws.write(rn, len(vals) + 1, row_sum, get_num_fmt(BG_SUB, sub_color, bold=True))
             rn += 1
 
         write_sec("INFLOWS",  inflows,  total=("TOTAL INFLOWS",  inflows_yr))
@@ -560,17 +611,22 @@ def build_excel():
         rn += 1
 
         ws.merge_range(rn, 0, rn, ncols, "INVESTMENT RETURNS", sub_fmt); rn += 1
-        ws.write(rn, 0, "Tasa de Descuento", lbl_total_fmt)
-        ws.write(rn, 1, discount_rate, pct_fmt)
+        ws.write(rn, 0, "Tasa de Descuento", get_lbl_fmt(BG_SUB, CLR_LABEL, bold=True))
+        ws.write(rn, 1, discount_rate, get_pct_fmt(BG_SUB, CLR_POS))
         rn += 1
-        for label, val, fmt_ in [
-            ("IRR Sin Financiamiento", irr_no  or 0, pct_fmt),
-            ("IRR Con Financiamiento", irr_fin or 0, pct_fmt),
-            ("NPV Sin Financiamiento", van_no  or 0, val_total_fmt),
-            ("NPV Con Financiamiento", van_fin or 0, val_total_fmt),
+        for label, val, is_pct in [
+            ("IRR Sin Financiamiento", irr_no  or 0, True),
+            ("IRR Con Financiamiento", irr_fin or 0, True),
+            ("NPV Sin Financiamiento", van_no  or 0, False),
+            ("NPV Con Financiamiento", van_fin or 0, False),
         ]:
-            ws.write(rn, 0, label, lbl_total_fmt)
-            ws.write(rn, 1, val, fmt_)
+            lbl_color = CLR_NEG if val < 0 else CLR_LABEL
+            val_color = CLR_NEG if val < 0 else CLR_POS
+            ws.write(rn, 0, label, get_lbl_fmt(BG_SUB, lbl_color, bold=True))
+            if is_pct:
+                ws.write(rn, 1, val, get_pct_fmt(BG_SUB, val_color))
+            else:
+                ws.write(rn, 1, val, get_num_fmt(BG_SUB, val_color, bold=True))
             rn += 1
 
     buf.seek(0)
@@ -583,9 +639,16 @@ def build_pdf():
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(True, margin=15)
 
-    BLUE  = (202, 189, 145);  LBLUE = (239, 248, 251)
-    DARK  = (202, 189, 145);  WHITE = (255, 255, 255); TEXT = (51, 51, 51)
-    GRAY  = (254, 251, 223)
+    HDR = (254, 251, 223)   # Encabezados #FEFBDF
+    SUB = (202, 189, 145)   # Subtotales  #CABD91
+    REG = (255, 255, 255)   # Filas regulares (blanco)
+    TEXT = (51, 51, 51)     # texto neutro para encabezados
+
+    # Formato condicional: negativo -> rojo, positivo -> negro;
+    # etiquetas (Concepto) -> azul, o rojo si el total de la fila es negativo.
+    TXT_POS   = (0, 0, 0)
+    TXT_NEG   = (220, 38, 38)
+    TXT_LABEL = (29, 78, 216)
 
     col_w   = max(18, int(360 / (N + 2)))
     label_w = 50
@@ -600,66 +663,78 @@ def build_pdf():
     pdf.ln(3)
 
     def draw_header():
-        pdf.set_fill_color(*BLUE); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
+        pdf.set_fill_color(*HDR); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 7, "Concepto", border=1, align="C", fill=True)
         for h in hdrs:
             pdf.cell(col_w, 7, h, border=1, align="C", fill=True)
         pdf.ln()
 
     def draw_sec_title(t):
-        pdf.set_fill_color(*DARK); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 8)
+        pdf.set_fill_color(*HDR); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 8)
         pdf.cell(label_w + col_w * len(hdrs), 6, f"  {t}", border=1, fill=True, ln=True)
 
     def fc(v):
         return "-" if v == 0 else (f"({abs(v):,.0f})" if v < 0 else f"{v:,.0f}")
 
     def draw_row(label, vals):
-        pdf.set_fill_color(*LBLUE); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "", 7)
+        row_sum = sum(vals)
+        pdf.set_fill_color(*REG)
+        pdf.set_text_color(*(TXT_NEG if row_sum < 0 else TXT_LABEL))
+        pdf.set_font("Helvetica", "", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
-            pdf.cell(col_w, 6, fc(v), border=1, align="R")
-        pdf.cell(col_w, 6, fc(sum(vals)), border=1, align="R", fill=True)
+            pdf.set_text_color(*(TXT_NEG if v < 0 else TXT_POS))
+            pdf.cell(col_w, 6, fc(v), border=1, align="R", fill=True)
+        pdf.set_fill_color(*SUB)
+        pdf.set_text_color(*(TXT_NEG if row_sum < 0 else TXT_POS))
+        pdf.cell(col_w, 6, fc(row_sum), border=1, align="R", fill=True)
         pdf.ln()
 
-    def draw_fcf(label, vals, sub, fill=(254, 251, 223)):
-        pdf.set_fill_color(*fill); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
+    def draw_fcf(label, vals, sub, fill=SUB):
+        pdf.set_fill_color(*fill)
+        pdf.set_text_color(*(TXT_NEG if sub < 0 else TXT_LABEL))
+        pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
+            pdf.set_text_color(*(TXT_NEG if v < 0 else TXT_POS))
             pdf.cell(col_w, 6, fc(v), border=1, align="R", fill=True)
+        pdf.set_text_color(*(TXT_NEG if sub < 0 else TXT_POS))
         pdf.cell(col_w, 6, fc(sub), border=1, align="R", fill=True)
         pdf.ln()
 
     draw_header()
     draw_sec_title("INFLOWS")
     for lbl, vals in inflows:  draw_row(lbl, vals)
-    draw_fcf("TOTAL INFLOWS", inflows_yr, sum(inflows_yr), fill=GRAY)
+    draw_fcf("TOTAL INFLOWS", inflows_yr, sum(inflows_yr))
     pdf.ln(2)
     draw_sec_title("OUTFLOWS")
     for lbl, vals in outflows: draw_row(lbl, vals)
-    draw_fcf("TOTAL OUTFLOWS", outflows_yr, sum(outflows_yr), fill=GRAY)
+    draw_fcf("TOTAL OUTFLOWS", outflows_yr, sum(outflows_yr))
     pdf.ln(4)
-    draw_fcf("FCF PROJECT", fcf_no_fin, npv_no, fill=GRAY)
+    draw_fcf("FCF PROJECT", fcf_no_fin, npv_no)
     pdf.ln(4)
     draw_sec_title("FCF FROM FINANCING")
     for lbl, vals in financing: draw_row(lbl, vals)
-    draw_fcf("TOTAL FINANCING", financing_yr, sum(financing_yr), fill=GRAY)
+    draw_fcf("TOTAL FINANCING", financing_yr, sum(financing_yr))
     pdf.ln(2)
     draw_sec_title("FREE CASH FLOW")
-    draw_fcf("FCF (Sin Financiamiento)", fcf_no_fin,   npv_no,  fill=GRAY)
-    draw_fcf("FCF (Con Financiamiento)", fcf_with_fin, npv_fin, fill=GRAY)
+    draw_fcf("FCF (Sin Financiamiento)", fcf_no_fin,   npv_no)
+    draw_fcf("FCF (Con Financiamiento)", fcf_with_fin, npv_fin)
     pdf.ln(5)
 
-    pdf.set_fill_color(*DARK); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 8)
+    pdf.set_fill_color(*HDR); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 8)
     pdf.cell(130, 7, "  INVESTMENT RETURNS", border=1, fill=True, ln=True)
-    for lbl, val in [
-        ("Tasa de Descuento",      f"{discount_rate*100:.2f}%"),
-        ("IRR Sin Financiamiento", f"{irr_no*100:.2f}%"  if irr_no  is not None else "-"),
-        ("IRR Con Financiamiento", f"{irr_fin*100:.2f}%" if irr_fin is not None else "-"),
-        ("NPV Sin Financiamiento", fmt_usd(van_no).replace("—", "-")),
-        ("NPV Con Financiamiento", fmt_usd(van_fin).replace("—", "-")),
+    for lbl, val, raw in [
+        ("Tasa de Descuento",      f"{discount_rate*100:.2f}%", discount_rate),
+        ("IRR Sin Financiamiento", f"{irr_no*100:.2f}%"  if irr_no  is not None else "-", irr_no  or 0),
+        ("IRR Con Financiamiento", f"{irr_fin*100:.2f}%" if irr_fin is not None else "-", irr_fin or 0),
+        ("NPV Sin Financiamiento", fmt_usd(van_no).replace("—", "-"),  van_no  or 0),
+        ("NPV Con Financiamiento", fmt_usd(van_fin).replace("—", "-"), van_fin or 0),
     ]:
-        pdf.set_fill_color(*GRAY); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
+        pdf.set_fill_color(*SUB); pdf.set_font("Helvetica", "B", 7)
+        pdf.set_text_color(*(TXT_NEG if raw < 0 else TXT_LABEL))
         pdf.cell(80, 6, f"  {lbl}", border=1, fill=True)
+        pdf.set_text_color(*(TXT_NEG if raw < 0 else TXT_POS))
         pdf.cell(50, 6, val, border=1, align="R", fill=True)
         pdf.ln()
 
