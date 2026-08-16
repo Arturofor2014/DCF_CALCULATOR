@@ -448,40 +448,26 @@ with metrics_container:
     roi                = (net_cash_generated / equity_amount * 100) if equity_amount else None
     revenue_cagr       = safe_cagr(inflows_yr)
 
-    rows = [
-        ("SALES",                        sales_total,   fmt_usd(sales_total)),
-        ("CAPEX",                        capex_amount,  fmt_usd(capex_amount)),
-        ("OPEX",                         opex_total,    fmt_usd(opex_total)),
-        ("NET CASH GENERATED",           net_cash_generated, fmt_usd(net_cash_generated)),
-        ("ROI",                          roi,           f"{roi:.2f}%" if roi is not None else "—"),
-    ]
-
-    def _metric_row_html(label, raw, val):
-        neg = raw is not None and raw < 0
-        lbl_color = CLR_NEG if neg else CLR_LABEL
-        val_color = CLR_NEG if neg else CLR_POS
-        return (
-            f'<tr style="background:#FFFFFF">'
-            f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:{lbl_color};border-bottom:1px solid #eee">{label}</td>'
-            f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:{val_color};border-bottom:1px solid #eee">{val}</td>'
-            f'</tr>'
-        )
-
-    body = "".join(_metric_row_html(d, raw, v) for d, raw, v in rows)
+    roi_label  = f"{roi:.2f}%" if roi is not None else "—"
+    cagr_label = f"{revenue_cagr*100:.2f}%" if revenue_cagr is not None else "—"
 
     col_table, col_kpis = st.columns([2, 2])
     with col_table:
-        st.markdown(f"""
-        <table style="width:100%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
-          <thead>
-            <tr style="background:#FEFBDF">
-              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333333;border-bottom:2px solid #ccc">DESCRIPTION</th>
-              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
-            </tr>
-          </thead>
-          <tbody>{body}</tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        row_sales, row_cagr = st.columns(2)
+        with row_sales:
+            st.markdown(kpi_card("SALES", fmt_usd(sales_total)), unsafe_allow_html=True)
+        with row_cagr:
+            st.markdown(kpi_card("Revenue CAGR", cagr_label, "por año"), unsafe_allow_html=True)
+
+        row_capex, row_opex = st.columns(2)
+        with row_capex:
+            st.markdown(kpi_card("CAPEX", fmt_usd(capex_amount)), unsafe_allow_html=True)
+        with row_opex:
+            st.markdown(kpi_card("OPEX", fmt_usd(opex_total)), unsafe_allow_html=True)
+
+        _, row_ncg = st.columns(2)
+        with row_ncg:
+            st.markdown(kpi_card("NET CASH GENERATED", fmt_usd(net_cash_generated)), unsafe_allow_html=True)
     with col_kpis:
         irr_no_label  = f"{irr_no*100:.2f}%"  if irr_no  is not None else "—"
         irr_fin_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
@@ -498,10 +484,9 @@ with metrics_container:
         with row_fin_van:
             st.markdown(kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
 
-        cagr_label = f"{revenue_cagr*100:+.2f}%" if revenue_cagr is not None else "—"
-        row_cagr, _ = st.columns(2)
-        with row_cagr:
-            st.markdown(kpi_card("Revenue CAGR", cagr_label, "por año"), unsafe_allow_html=True)
+        row_roi, _ = st.columns(2)
+        with row_roi:
+            st.markdown(kpi_card("ROI", roi_label), unsafe_allow_html=True)
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
