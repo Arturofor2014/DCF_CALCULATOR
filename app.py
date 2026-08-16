@@ -152,6 +152,12 @@ def fmt_usd(v):
         return "—"
     return f"(${abs(v):,.0f})" if v < 0 else f"${v:,.0f}"
 
+def fmt_pct(pct, none_str="—"):
+    # pct ya viene en escala de porcentaje (ej. 10.0 = 10%), no en fracción.
+    if pct is None or (isinstance(pct, float) and np.isnan(pct)):
+        return none_str
+    return f"({abs(pct):.2f}%)" if pct < 0 else f"{pct:.2f}%"
+
 def _pdf_safe(s):
     # Helvetica (fuente core del PDF) solo soporta Latin-1; cualquier
     # carácter fuera de ese rango (tipografía "inteligente" pegada desde
@@ -326,12 +332,9 @@ st.markdown('<div class="page-title">Modelo dinámico de valoración y análisis
 st.markdown('<div class="page-sub">Selecciona un proyecto · edita las celdas · los resultados se recalculan automáticamente</div>', unsafe_allow_html=True)
 
 projects = get_projects()
-col_sel, col_info, col_rate = st.columns([2, 4, 2])
+col_sel, col_rate = st.columns([3, 2])
 with col_sel:
     selected = st.selectbox("Proyecto", projects, key="project_selector")
-with col_info:
-    st.markdown(f"<br><span style='color:#888;font-size:13px'>Fuente: <code>Google Sheets</code> · Hoja: <code>{selected}</code></span>",
-                unsafe_allow_html=True)
 with col_rate:
     discount_rate_pct = st.number_input(
         "Tasa de Descuento (%)", min_value=0.0, max_value=100.0,
@@ -454,11 +457,11 @@ with metrics_container:
     roi                = (net_cash_generated / equity_amount * 100) if equity_amount else None
     revenue_cagr       = safe_cagr(inflows_yr)
 
-    roi_label  = f"{roi:.2f}%" if roi is not None else "—"
-    cagr_label = f"{revenue_cagr*100:.2f}%" if revenue_cagr is not None else "—"
+    roi_label  = fmt_pct(roi)
+    cagr_label = fmt_pct(revenue_cagr * 100 if revenue_cagr is not None else None)
 
-    irr_no_label  = f"{irr_no*100:.2f}%"  if irr_no  is not None else "—"
-    irr_fin_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
+    irr_no_label  = fmt_pct(irr_no  * 100 if irr_no  is not None else None)
+    irr_fin_label = fmt_pct(irr_fin * 100 if irr_fin is not None else None)
 
     # Grid CSS explícito (en vez de filas independientes de st.columns) para
     # garantizar que cada tarjeta quede exactamente debajo de la de arriba,
@@ -530,7 +533,7 @@ def build_excel():
             key = ("pct", bg, color, bold)
             if key not in _fmt_cache:
                 _fmt_cache[key] = wb_out.add_format({
-                    "num_format": '0.00%', "border": 1, "bg_color": bg,
+                    "num_format": '0.00%;(0.00%)', "border": 1, "bg_color": bg,
                     "align": "right", "font_color": color, "bold": bold,
                 })
             return _fmt_cache[key]
@@ -709,9 +712,9 @@ def build_pdf():
     pdf.set_fill_color(*HDR); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 8)
     pdf.cell(130, 7, "  INVESTMENT RETURNS", border=1, fill=True, ln=True)
     for lbl, val, raw in [
-        ("Tasa de Descuento",      f"{discount_rate*100:.2f}%", discount_rate),
-        ("IRR Sin Financiamiento", f"{irr_no*100:.2f}%"  if irr_no  is not None else "-", irr_no  or 0),
-        ("IRR Con Financiamiento", f"{irr_fin*100:.2f}%" if irr_fin is not None else "-", irr_fin or 0),
+        ("Tasa de Descuento",      fmt_pct(discount_rate * 100, none_str="-"), discount_rate),
+        ("IRR Sin Financiamiento", fmt_pct(irr_no  * 100 if irr_no  is not None else None, none_str="-"), irr_no  or 0),
+        ("IRR Con Financiamiento", fmt_pct(irr_fin * 100 if irr_fin is not None else None, none_str="-"), irr_fin or 0),
         ("NPV Sin Financiamiento", fmt_usd(van_no).replace("—", "-"),  van_no  or 0),
         ("NPV Con Financiamiento", fmt_usd(van_fin).replace("—", "-"), van_fin or 0),
     ]:
