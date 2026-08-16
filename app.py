@@ -316,12 +316,18 @@ st.markdown('<div class="page-title">📊 DCF PROJECT CALCULATOR</div>', unsafe_
 st.markdown('<div class="page-sub">Selecciona un proyecto · edita las celdas · los resultados se recalculan automáticamente</div>', unsafe_allow_html=True)
 
 projects = get_projects()
-col_sel, col_info = st.columns([2, 5])
+col_sel, col_info, col_rate = st.columns([2, 4, 2])
 with col_sel:
     selected = st.selectbox("Proyecto", projects, key="project_selector")
 with col_info:
     st.markdown(f"<br><span style='color:#888;font-size:13px'>Fuente: <code>Google Sheets</code> · Hoja: <code>{selected}</code></span>",
                 unsafe_allow_html=True)
+with col_rate:
+    discount_rate_pct = st.number_input(
+        "Tasa de Descuento (%)", min_value=0.0, max_value=100.0,
+        value=10.0, step=0.5, format="%.2f", key="discount_rate",
+    )
+discount_rate = discount_rate_pct / 100.0
 
 D, YEARS, METRICS = load_defaults(selected)
 SCOLS = [str(y) for y in YEARS]
@@ -384,6 +390,15 @@ def safe_irr(cf):
 irr_no  = safe_irr(fcf_no_fin)
 irr_fin = safe_irr(fcf_with_fin)
 
+def safe_npv(rate, cf):
+    try:
+        return float(npf.npv(rate, cf))
+    except Exception:
+        return None
+
+van_no  = safe_npv(discount_rate, fcf_no_fin)
+van_fin = safe_npv(discount_rate, fcf_with_fin)
+
 noi_last   = inflows_yr[-1] + outflows_yr[-1]
 sales_last = inflows_yr[-1]
 cap_rate   = noi_last / sales_last if sales_last != 0 else 0
@@ -442,7 +457,7 @@ with metrics_container:
         irr_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
         st.markdown(kpi_card("IRR", irr_label, "Con financiamiento"), unsafe_allow_html=True)
     with col_van:
-        st.markdown(kpi_card("VAN", fmt_usd(npv_fin), "Con financiamiento", green=True), unsafe_allow_html=True)
+        st.markdown(kpi_card("VAN", fmt_usd(van_fin), f"Con financiamiento · {discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
@@ -524,11 +539,14 @@ def build_excel():
         rn += 1
 
         ws.merge_range(rn, 0, rn, ncols, "INVESTMENT RETURNS", sub_fmt); rn += 1
+        ws.write(rn, 0, "Tasa de Descuento", lbl_total_fmt)
+        ws.write(rn, 1, discount_rate, pct_fmt)
+        rn += 1
         for label, val, fmt_ in [
             ("IRR Sin Financiamiento", irr_no  or 0, pct_fmt),
             ("IRR Con Financiamiento", irr_fin or 0, pct_fmt),
-            ("NPV Sin Financiamiento", npv_no,       val_total_fmt),
-            ("NPV Con Financiamiento", npv_fin,      val_total_fmt),
+            ("NPV Sin Financiamiento", van_no  or 0, val_total_fmt),
+            ("NPV Con Financiamiento", van_fin or 0, val_total_fmt),
         ]:
             ws.write(rn, 0, label, lbl_total_fmt)
             ws.write(rn, 1, val, fmt_)
@@ -586,7 +604,7 @@ def build_pdf():
         pdf.set_fill_color(*fill); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
-            pdf.cell(col_w, 6, fc(v), border=1, align="R")
+            pdf.cell(col_w, 6, fc(v), border=1, align="R", fill=True)
         pdf.cell(col_w, 6, fc(sub), border=1, align="R", fill=True)
         pdf.ln()
 
@@ -612,10 +630,11 @@ def build_pdf():
     pdf.set_fill_color(*DARK); pdf.set_text_color(*WHITE); pdf.set_font("Helvetica", "B", 8)
     pdf.cell(130, 7, "  INVESTMENT RETURNS", border=1, fill=True, ln=True)
     for lbl, val in [
+        ("Tasa de Descuento",      f"{discount_rate*100:.2f}%"),
         ("IRR Sin Financiamiento", f"{irr_no*100:.2f}%"  if irr_no  is not None else "-"),
         ("IRR Con Financiamiento", f"{irr_fin*100:.2f}%" if irr_fin is not None else "-"),
-        ("NPV Sin Financiamiento", fmt_usd(npv_no).replace("—", "-")),
-        ("NPV Con Financiamiento", fmt_usd(npv_fin).replace("—", "-")),
+        ("NPV Sin Financiamiento", fmt_usd(van_no).replace("—", "-")),
+        ("NPV Con Financiamiento", fmt_usd(van_fin).replace("—", "-")),
     ]:
         pdf.set_fill_color(*GRAY); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(80, 6, f"  {lbl}", border=1, fill=True)
