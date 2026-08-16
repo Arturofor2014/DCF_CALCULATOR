@@ -40,23 +40,23 @@ section[data-testid="stSidebar"] {{ display: none; }}
     display: flex; flex-direction: column; justify-content: center; align-items: center;
 }}
 .kpi-label {{ font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.4; }}
-.kpi-val   {{ font-size: 20px; font-weight: 900; color: #0052FF; margin: 6px 0 3px; }}
+.kpi-val   {{ font-size: 20px; font-weight: 900; color: #374151; margin: 6px 0 3px; }}
 .kpi-sub   {{ font-size: 10px; color: #999; }}
-.kpi-val-green {{ font-size: 20px; font-weight: 900; color: #00875A; margin: 6px 0 3px; }}
+.kpi-val-green {{ font-size: 20px; font-weight: 900; color: #1F2937; margin: 6px 0 3px; }}
 .section-hdr {{
-    font-size: 13px; font-weight: 800; color: #0052FF;
+    font-size: 13px; font-weight: 800; color: #374151;
     letter-spacing: 2px; text-transform: uppercase;
-    border-left: 4px solid #0052FF; padding-left: 10px; margin: 20px 0 6px;
+    border-left: 4px solid #374151; padding-left: 10px; margin: 20px 0 6px;
     width: {SECTION_HDR_WIDTH}; box-sizing: border-box;
 }}
 .subgroup-hdr {{
-    background: #F5F0C8; padding: 5px 12px 5px 16px;
+    background: #E5E7EB; padding: 5px 12px 5px 16px;
     font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
-    color: #5D4E0D; border-left: 4px solid #C8A800;
+    color: #374151; border-left: 4px solid #9CA3AF;
     margin: 6px 0 1px 0;
     width: {SUBGROUP_HDR_WIDTH}; box-sizing: border-box;
 }}
-.page-title {{ font-size: 26px; font-weight: 900; color: #0052FF; letter-spacing: 1px; }}
+.page-title {{ font-size: 26px; font-weight: 900; color: #111827; letter-spacing: 1px; text-align: center; }}
 .page-sub   {{ font-size: 13px; color: #888; margin-top: -4px; }}
 </style>
 """, unsafe_allow_html=True)
@@ -132,7 +132,7 @@ def load_defaults(project_name: str):
     DEFAULTS = {
         "INFLOWS":   ["Revenue 1", "Revenue 2"],
         "OUTFLOWS":  ["CAPEX", "OPEX", "Comm 1", "Comm 2"],
-        "FINANCING": ["Debt Draw", "Debt Repay"],
+        "FINANCING": ["Debt Draw", "Principal Repayment", "Interest"],
     }
 
     for sec, default_concepts in DEFAULTS.items():
@@ -145,21 +145,7 @@ def load_defaults(project_name: str):
                 ordered.append((c, v))
         sections[sec] = ordered
 
-    # Leer métricas desde fila 40 en adelante (col A = label, col B = valor)
-    metrics = []
-    reading = False
-    for row in ws.iter_rows(min_row=40, max_col=2, values_only=True):
-        a, b = row[0], row[1]
-        if str(a).strip().lower() == "description":
-            reading = True
-            continue
-        if reading and a and b is not None:
-            try:
-                metrics.append((str(a).strip(), float(b)))
-            except (TypeError, ValueError):
-                pass
-
-    return sections, years, metrics
+    return sections, years
 
 def fmt_usd(v):
     if v is None or (isinstance(v, float) and np.isnan(v)):
@@ -214,7 +200,7 @@ def col_cfg(scols):
 
 def total_row_style(df, num_cols):
     return df.style.apply(
-        lambda r: ["background-color:#1E3A5F;color:white;font-weight:bold"] * len(r), axis=1
+        lambda r: ["background-color:#374151;color:white;font-weight:bold"] * len(r), axis=1
     ).format(lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"), subset=num_cols)
 
 def sum_by_year(section, n):
@@ -233,7 +219,7 @@ def render_fcf_row(label, year_vals, subtotal, scols):
     df = pd.DataFrame([row])
     st.dataframe(
         df.style.apply(
-            lambda r: ["background-color:#DBEAFE;color:#1E3A5F;font-weight:bold"] * len(r), axis=1
+            lambda r: ["background-color:#E5E7EB;color:#111827;font-weight:bold"] * len(r), axis=1
         ).format(
             lambda x: f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}",
             subset=scols + ["SUBTOTAL"],
@@ -318,7 +304,7 @@ def render_section(title, key, section_data, scols, selected):
 
     return all_results
 
-st.markdown('<div class="page-title">📊 DCF PROJECT CALCULATOR</div>', unsafe_allow_html=True)
+st.markdown('<div class="page-title">Modelo dinámico de valoración y análisis financiero</div>', unsafe_allow_html=True)
 st.markdown('<div class="page-sub">Selecciona un proyecto · edita las celdas · los resultados se recalculan automáticamente</div>', unsafe_allow_html=True)
 
 projects = get_projects()
@@ -335,7 +321,7 @@ with col_rate:
     )
 discount_rate = discount_rate_pct / 100.0
 
-D, YEARS, METRICS = load_defaults(selected)
+D, YEARS = load_defaults(selected)
 SCOLS = [str(y) for y in YEARS]
 N = len(YEARS)
 st.divider()
@@ -379,8 +365,8 @@ totals_df = pd.DataFrame([
 st.dataframe(
     totals_df.style.apply(
         lambda r: [
-            "background-color:#DBEAFE;color:#1e40af;font-weight:bold" if r["Concepto"].endswith("INFLOWS")
-            else "background-color:#FEE2E2;color:#991b1b;font-weight:bold"
+            "background-color:#F3F4F6;color:#111827;font-weight:bold" if r["Concepto"].endswith("INFLOWS")
+            else "background-color:#D1D5DB;color:#111827;font-weight:bold"
         ] * len(r), axis=1
     ).format(
         lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"),
@@ -422,6 +408,17 @@ def safe_npv(rate, cf):
 van_no  = safe_npv(discount_rate, fcf_no_fin)
 van_fin = safe_npv(discount_rate, fcf_with_fin)
 
+def safe_cagr(vals):
+    # Tasa de crecimiento anual compuesta: promedio de crecimiento por año
+    # entre el primer y el último valor de la serie.
+    n = len(vals)
+    if n < 2 or vals[0] <= 0 or vals[-1] < 0:
+        return None
+    try:
+        return (vals[-1] / vals[0]) ** (1 / (n - 1)) - 1
+    except Exception:
+        return None
+
 noi_last   = inflows_yr[-1] + outflows_yr[-1]
 sales_last = inflows_yr[-1]
 cap_rate   = noi_last / sales_last if sales_last != 0 else 0
@@ -432,37 +429,35 @@ cash_on_cash  = npv_fin / equity_actual if equity_actual != 0 else None
 with metrics_container:
     st.markdown('<div class="section-hdr">INVESTMENT RETURNS — Métricas Clave</div>', unsafe_allow_html=True)
 
-    PCT_KEYS  = {"CASH-ON-CASH", "IRR WITH FINANCING", "IRR SIN FINANCING",
-                 "ROI", "ROE", "CAP RATE", "CAP RATE ANUAL"}
-    MULT_KEYS = {"EQUITY MULTIPLE"}
+    sales_total        = sum(inflows_yr)
+    opex_total         = abs(concept_total(outflows, "OPEX"))
+    net_cash_generated = npv_fin
+    roi                = (net_cash_generated / equity_amount * 100) if equity_amount else None
+    revenue_cagr       = safe_cagr(inflows_yr)
 
-    def fmt_metric(key, val):
-        k = key.upper()
-        # Comparar por palabra completa, no por subcadena: "RATE" no debe
-        # coincidir dentro de "GENERATED", ni "CASH" dentro de "NET CASH GENERATED".
-        words = k.replace("-", " ").split()
-        if k in PCT_KEYS or "CASH-ON-CASH" in k or any(w in ("IRR", "RATE", "ROI", "ROE") for w in words):
-            return f"{val*100:.2f}%"
-        if k in MULT_KEYS or "MULTIPLE" in words:
-            return f"{val:.3f}"
-        return fmt_usd(val)
-
-    rows = [(label, fmt_metric(label, val)) for label, val in METRICS]
+    rows = [
+        ("SALES",                        fmt_usd(sales_total)),
+        ("CRECIMIENTO PROMEDIO REVENUE", f"{revenue_cagr*100:+.2f}% / año" if revenue_cagr is not None else "—"),
+        ("CAPEX",                        fmt_usd(capex_amount)),
+        ("OPEX",                         fmt_usd(opex_total)),
+        ("NET CASH GENERATED",           fmt_usd(net_cash_generated)),
+        ("ROI",                          f"{roi:.2f}%" if roi is not None else "—"),
+    ]
 
     body = "".join(
         f'<tr style="background:{"#FAFAFA" if i%2==0 else "#FFFFFF"}">'
-        f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:#1a1a2e;border-bottom:1px solid #eee">{d}</td>'
-        f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:#0052FF;border-bottom:1px solid #eee">{v}</td>'
+        f'<td style="padding:7px 14px;font-size:12px;font-weight:700;color:#111827;border-bottom:1px solid #eee">{d}</td>'
+        f'<td style="padding:7px 14px;text-align:right;font-size:12px;font-weight:700;color:#374151;border-bottom:1px solid #eee">{v}</td>'
         f'</tr>'
         for i, (d, v) in enumerate(rows)
     )
 
-    col_table, col_irr_no, col_irr_fin, col_van_no, col_van_fin = st.columns([2, 1, 1, 1, 1])
+    col_table, col_kpis = st.columns([2, 2])
     with col_table:
         st.markdown(f"""
         <table style="width:100%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
           <thead>
-            <tr style="background:#F5F0C8">
+            <tr style="background:#E5E7EB">
               <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">DESCRIPTION</th>
               <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:800;letter-spacing:1.5px;color:#333;border-bottom:2px solid #ccc">PROJECT CLOSING OPERATOR</th>
             </tr>
@@ -470,16 +465,21 @@ with metrics_container:
           <tbody>{body}</tbody>
         </table>
         """, unsafe_allow_html=True)
-    with col_irr_no:
-        irr_no_label = f"{irr_no*100:.2f}%" if irr_no is not None else "—"
-        st.markdown(kpi_card("TIR Sin Financiamiento", irr_no_label), unsafe_allow_html=True)
-    with col_irr_fin:
+    with col_kpis:
+        irr_no_label  = f"{irr_no*100:.2f}%"  if irr_no  is not None else "—"
         irr_fin_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
-        st.markdown(kpi_card("TIR Con Financiamiento", irr_fin_label), unsafe_allow_html=True)
-    with col_van_no:
-        st.markdown(kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%"), unsafe_allow_html=True)
-    with col_van_fin:
-        st.markdown(kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
+
+        row_no_irr, row_no_van = st.columns(2)
+        with row_no_irr:
+            st.markdown(kpi_card("TIR Sin Financiamiento", irr_no_label), unsafe_allow_html=True)
+        with row_no_van:
+            st.markdown(kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%"), unsafe_allow_html=True)
+
+        row_fin_irr, row_fin_van = st.columns(2)
+        with row_fin_irr:
+            st.markdown(kpi_card("TIR Con Financiamiento", irr_fin_label), unsafe_allow_html=True)
+        with row_fin_van:
+            st.markdown(kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
@@ -489,15 +489,15 @@ def build_excel():
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
         wb_out   = writer.book
-        hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": "#0052FF", "font_color": "#FFFFFF", "border": 1, "align": "center"})
-        lbl_fmt  = wb_out.add_format({"bold": True, "bg_color": "#EEF2FF", "border": 1, "indent": 1})
+        hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": "#374151", "font_color": "#FFFFFF", "border": 1, "align": "center"})
+        lbl_fmt  = wb_out.add_format({"bold": True, "bg_color": "#F3F4F6", "border": 1, "indent": 1})
         num_fmt  = wb_out.add_format({"num_format": '#,##0;(#,##0)', "border": 1, "align": "right"})
-        tot_fmt  = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#DBEAFE", "align": "right"})
+        tot_fmt  = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#F3F4F6", "align": "right"})
         lbl_total_fmt = wb_out.add_format({"bold": True, "bg_color": "#E5E7EB", "border": 1, "indent": 1})
         val_total_fmt = wb_out.add_format({"bold": True, "num_format": '#,##0;(#,##0)', "border": 1, "bg_color": "#E5E7EB", "align": "right"})
         pct_fmt  = wb_out.add_format({"num_format": '0.00%', "border": 1, "bg_color": "#E5E7EB", "align": "right"})
-        title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#0052FF"})
-        sub_fmt  = wb_out.add_format({"bold": True, "bg_color": "#1E3A5F", "font_color": "#FFFFFF", "border": 1, "indent": 1})
+        title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#374151"})
+        sub_fmt  = wb_out.add_format({"bold": True, "bg_color": "#1F2937", "font_color": "#FFFFFF", "border": 1, "indent": 1})
         date_fmt = wb_out.add_format({"italic": True, "font_size": 10, "font_color": "#888888"})
 
         ws = wb_out.add_worksheet("DCF PROJECT")
@@ -553,7 +553,7 @@ def build_excel():
         write_total_row("FCF PROJECT", fcf_no_fin)
         rn += 1
 
-        write_sec("FCF FROM FINANCING", financing)
+        write_sec("FCF FROM FINANCING", financing, total=("TOTAL FINANCING", financing_yr))
 
         ws.merge_range(rn, 0, rn, ncols, "FREE CASH FLOW", sub_fmt); rn += 1
         write_total_row("FCF (Sin Financiamiento)", fcf_no_fin)
@@ -584,8 +584,8 @@ def build_pdf():
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(True, margin=15)
 
-    BLUE  = (0, 82, 255);  LBLUE = (238, 242, 255)
-    DARK  = (30, 58, 95);  WHITE = (255, 255, 255); TEXT = (38, 39, 48)
+    BLUE  = (55, 65, 81);  LBLUE = (243, 244, 246)
+    DARK  = (31, 41, 55);  WHITE = (255, 255, 255); TEXT = (17, 24, 39)
     GRAY  = (229, 231, 235)
 
     col_w   = max(18, int(360 / (N + 2)))
@@ -622,7 +622,7 @@ def build_pdf():
         pdf.cell(col_w, 6, fc(sum(vals)), border=1, align="R", fill=True)
         pdf.ln()
 
-    def draw_fcf(label, vals, sub, fill=(219, 234, 254)):
+    def draw_fcf(label, vals, sub, fill=(243, 244, 246)):
         pdf.set_fill_color(*fill); pdf.set_text_color(*TEXT); pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
@@ -643,6 +643,7 @@ def build_pdf():
     pdf.ln(4)
     draw_sec_title("FCF FROM FINANCING")
     for lbl, vals in financing: draw_row(lbl, vals)
+    draw_fcf("TOTAL FINANCING", financing_yr, sum(financing_yr), fill=GRAY)
     pdf.ln(2)
     draw_sec_title("FREE CASH FLOW")
     draw_fcf("FCF (Sin Financiamiento)", fcf_no_fin,   npv_no,  fill=GRAY)
