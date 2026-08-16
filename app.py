@@ -451,42 +451,35 @@ with metrics_container:
     roi_label  = f"{roi:.2f}%" if roi is not None else "—"
     cagr_label = f"{revenue_cagr*100:.2f}%" if revenue_cagr is not None else "—"
 
-    col_table, col_kpis = st.columns([2, 2])
+    irr_no_label  = f"{irr_no*100:.2f}%"  if irr_no  is not None else "—"
+    irr_fin_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
+
+    # Grid CSS explícito (en vez de filas independientes de st.columns) para
+    # garantizar que cada tarjeta quede exactamente debajo de la de arriba,
+    # sin desalinearse por tarjetas de distinta altura (p. ej. subtítulos largos).
+    col_table, col_divider, col_kpis = st.columns([2, 0.05, 2])
     with col_table:
-        row_sales, row_cagr = st.columns(2)
-        with row_sales:
-            st.markdown(kpi_card("SALES", fmt_usd(sales_total)), unsafe_allow_html=True)
-        with row_cagr:
-            st.markdown(kpi_card("Revenue CAGR", cagr_label, "por año"), unsafe_allow_html=True)
-
-        row_capex, row_opex = st.columns(2)
-        with row_capex:
-            st.markdown(kpi_card("CAPEX", fmt_usd(capex_amount)), unsafe_allow_html=True)
-        with row_opex:
-            st.markdown(kpi_card("OPEX", fmt_usd(opex_total)), unsafe_allow_html=True)
-
-        _, row_ncg = st.columns(2)
-        with row_ncg:
-            st.markdown(kpi_card("NET CASH GENERATED", fmt_usd(net_cash_generated)), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;">
+            {kpi_card("SALES", fmt_usd(sales_total))}
+            {kpi_card("CAGR Revenue", cagr_label, "Crecimiento anual compuesto (todo el período)")}
+            {kpi_card("CAPEX", fmt_usd(capex_amount))}
+            {kpi_card("OPEX", fmt_usd(opex_total))}
+            {kpi_card("NET CASH GENERATED", fmt_usd(net_cash_generated))}
+        </div>
+        """, unsafe_allow_html=True)
+    with col_divider:
+        st.markdown('<div style="width:1px;background:#D1D5DB;height:360px;margin:0 auto;"></div>', unsafe_allow_html=True)
     with col_kpis:
-        irr_no_label  = f"{irr_no*100:.2f}%"  if irr_no  is not None else "—"
-        irr_fin_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
-
-        row_no_irr, row_no_van = st.columns(2)
-        with row_no_irr:
-            st.markdown(kpi_card("TIR Sin Financiamiento", irr_no_label), unsafe_allow_html=True)
-        with row_no_van:
-            st.markdown(kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%"), unsafe_allow_html=True)
-
-        row_fin_irr, row_fin_van = st.columns(2)
-        with row_fin_irr:
-            st.markdown(kpi_card("TIR Con Financiamiento", irr_fin_label), unsafe_allow_html=True)
-        with row_fin_van:
-            st.markdown(kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
-
-        row_roi, _ = st.columns(2)
-        with row_roi:
-            st.markdown(kpi_card("ROI", roi_label), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;">
+            {kpi_card("TIR Sin Financiamiento", irr_no_label)}
+            {kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%")}
+            {kpi_card("TIR Con Financiamiento", irr_fin_label)}
+            {kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True)}
+            {kpi_card("ROI", roi_label)}
+        </div>
+        """, unsafe_allow_html=True)
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
