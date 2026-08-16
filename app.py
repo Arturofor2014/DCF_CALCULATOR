@@ -56,8 +56,8 @@ section[data-testid="stSidebar"] {{ display: none; }}
     margin: 6px 0 1px 0;
     width: {SUBGROUP_HDR_WIDTH}; box-sizing: border-box;
 }}
-.page-title {{ font-size: 26px; font-weight: 900; color: #111827; letter-spacing: 1px; text-align: center; }}
-.page-sub   {{ font-size: 13px; color: #888; margin-top: -4px; }}
+.page-title {{ font-size: 30px; font-weight: 900; color: #111827; letter-spacing: 1px; text-align: center; margin-bottom: 1.2em; }}
+.page-sub   {{ font-size: 13px; color: #888; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -421,17 +421,6 @@ def safe_npv(rate, cf):
 van_no  = safe_npv(discount_rate, fcf_no_fin)
 van_fin = safe_npv(discount_rate, fcf_with_fin)
 
-def safe_cagr(vals):
-    # Tasa de crecimiento anual compuesta: promedio de crecimiento por año
-    # entre el primer y el último valor de la serie.
-    n = len(vals)
-    if n < 2 or vals[0] <= 0 or vals[-1] < 0:
-        return None
-    try:
-        return (vals[-1] / vals[0]) ** (1 / (n - 1)) - 1
-    except Exception:
-        return None
-
 noi_last   = inflows_yr[-1] + outflows_yr[-1]
 sales_last = inflows_yr[-1]
 cap_rate   = noi_last / sales_last if sales_last != 0 else 0
@@ -446,11 +435,9 @@ with metrics_container:
     opex_total         = abs(concept_total(outflows, "OPEX"))
     net_cash_generated = npv_fin
     roi                = (net_cash_generated / equity_amount * 100) if equity_amount else None
-    revenue_cagr       = safe_cagr(inflows_yr)
 
     rows = [
         ("SALES",                        sales_total,   fmt_usd(sales_total)),
-        ("CRECIMIENTO PROMEDIO REVENUE", revenue_cagr,  f"{revenue_cagr*100:+.2f}% / año" if revenue_cagr is not None else "—"),
         ("CAPEX",                        capex_amount,  fmt_usd(capex_amount)),
         ("OPEX",                         opex_total,    fmt_usd(opex_total)),
         ("NET CASH GENERATED",           net_cash_generated, fmt_usd(net_cash_generated)),
@@ -508,17 +495,17 @@ def build_excel():
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
         wb_out   = writer.book
 
-        BG_HEADER = "#FEFBDF"   # Encabezados
-        BG_SUB    = "#FEFBDF"   # Subtotales
-        BG_REG    = "#FFFFFF"   # Filas regulares
+        BG_HEADER = "#FEFBDF"   # Encabezados y subtítulos de sección (único fondo amarillo)
+        BG_SUB    = "#FFFFFF"   # Filas de subtotal/total -> blanco
+        BG_REG    = "#FFFFFF"   # Filas regulares -> blanco
 
         hdr_fmt  = wb_out.add_format({"bold": True, "bg_color": BG_HEADER, "font_color": "#333333", "border": 1, "align": "center"})
         title_fmt = wb_out.add_format({"bold": True, "font_size": 14, "font_color": "#333333"})
         sub_fmt  = wb_out.add_format({"bold": True, "bg_color": BG_HEADER, "font_color": "#333333", "border": 1, "indent": 1})
         date_fmt = wb_out.add_format({"italic": True, "font_size": 10, "font_color": "#888888"})
 
-        # Formatos condicionales: negativo -> rojo, positivo -> negro;
-        # etiquetas (Concepto) -> azul, o rojo si el total de la fila es negativo.
+        # Formato condicional: valores numéricos negativos -> rojo, positivos -> negro.
+        # Las etiquetas (texto, no numérico) siempre en negro.
         _fmt_cache = {}
 
         def get_num_fmt(bg, color, bold=False):
@@ -570,8 +557,7 @@ def build_excel():
             rn += 1
             for label, vals in rows:
                 row_sum = sum(vals)
-                lbl_color = CLR_NEG if row_sum < 0 else CLR_LABEL
-                ws.write(rn, 0, label, get_lbl_fmt(BG_REG, lbl_color, bold=True))
+                ws.write(rn, 0, label, get_lbl_fmt(BG_REG, CLR_POS, bold=True))
                 for c, v in enumerate(vals, 1):
                     color = CLR_NEG if v < 0 else CLR_POS
                     ws.write(rn, c, v, get_num_fmt(BG_REG, color))
@@ -586,8 +572,7 @@ def build_excel():
         def write_total_row(label, vals):
             nonlocal rn
             row_sum = sum(vals)
-            lbl_color = CLR_NEG if row_sum < 0 else CLR_LABEL
-            ws.write(rn, 0, label, get_lbl_fmt(BG_SUB, lbl_color, bold=True))
+            ws.write(rn, 0, label, get_lbl_fmt(BG_SUB, CLR_POS, bold=True))
             for c, v in enumerate(vals, 1):
                 color = CLR_NEG if v < 0 else CLR_POS
                 ws.write(rn, c, v, get_num_fmt(BG_SUB, color, bold=True))
@@ -611,7 +596,7 @@ def build_excel():
         rn += 1
 
         ws.merge_range(rn, 0, rn, ncols, "INVESTMENT RETURNS", sub_fmt); rn += 1
-        ws.write(rn, 0, "Tasa de Descuento", get_lbl_fmt(BG_SUB, CLR_LABEL, bold=True))
+        ws.write(rn, 0, "Tasa de Descuento", get_lbl_fmt(BG_SUB, CLR_POS, bold=True))
         ws.write(rn, 1, discount_rate, get_pct_fmt(BG_SUB, CLR_POS))
         rn += 1
         for label, val, is_pct in [
@@ -620,9 +605,8 @@ def build_excel():
             ("NPV Sin Financiamiento", van_no  or 0, False),
             ("NPV Con Financiamiento", van_fin or 0, False),
         ]:
-            lbl_color = CLR_NEG if val < 0 else CLR_LABEL
             val_color = CLR_NEG if val < 0 else CLR_POS
-            ws.write(rn, 0, label, get_lbl_fmt(BG_SUB, lbl_color, bold=True))
+            ws.write(rn, 0, label, get_lbl_fmt(BG_SUB, CLR_POS, bold=True))
             if is_pct:
                 ws.write(rn, 1, val, get_pct_fmt(BG_SUB, val_color))
             else:
@@ -639,16 +623,15 @@ def build_pdf():
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(True, margin=15)
 
-    HDR = (254, 251, 223)   # Encabezados #FEFBDF
-    SUB = (254, 251, 223)   # Subtotales  #FEFBDF
-    REG = (255, 255, 255)   # Filas regulares (blanco)
+    HDR = (254, 251, 223)   # Encabezados y subtítulos de sección (único fondo amarillo) #FEFBDF
+    SUB = (255, 255, 255)   # Filas de subtotal/total -> blanco
+    REG = (255, 255, 255)   # Filas regulares -> blanco
     TEXT = (51, 51, 51)     # texto neutro para encabezados
 
-    # Formato condicional: negativo -> rojo, positivo -> negro;
-    # etiquetas (Concepto) -> azul, o rojo si el total de la fila es negativo.
-    TXT_POS   = (0, 0, 0)
-    TXT_NEG   = (220, 38, 38)
-    TXT_LABEL = (29, 78, 216)
+    # Formato condicional: valores numéricos negativos -> rojo, positivos -> negro.
+    # Las etiquetas (texto, no numérico) siempre en negro.
+    TXT_POS = (0, 0, 0)
+    TXT_NEG = (220, 38, 38)
 
     col_w   = max(18, int(360 / (N + 2)))
     label_w = 50
@@ -679,7 +662,7 @@ def build_pdf():
     def draw_row(label, vals):
         row_sum = sum(vals)
         pdf.set_fill_color(*REG)
-        pdf.set_text_color(*(TXT_NEG if row_sum < 0 else TXT_LABEL))
+        pdf.set_text_color(*TXT_POS)
         pdf.set_font("Helvetica", "", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
@@ -692,7 +675,7 @@ def build_pdf():
 
     def draw_fcf(label, vals, sub, fill=SUB):
         pdf.set_fill_color(*fill)
-        pdf.set_text_color(*(TXT_NEG if sub < 0 else TXT_LABEL))
+        pdf.set_text_color(*TXT_POS)
         pdf.set_font("Helvetica", "B", 7)
         pdf.cell(label_w, 6, _pdf_safe(f"  {label}"), border=1, fill=True)
         for v in vals:
@@ -732,7 +715,7 @@ def build_pdf():
         ("NPV Con Financiamiento", fmt_usd(van_fin).replace("—", "-"), van_fin or 0),
     ]:
         pdf.set_fill_color(*SUB); pdf.set_font("Helvetica", "B", 7)
-        pdf.set_text_color(*(TXT_NEG if raw < 0 else TXT_LABEL))
+        pdf.set_text_color(*TXT_POS)
         pdf.cell(80, 6, f"  {lbl}", border=1, fill=True)
         pdf.set_text_color(*(TXT_NEG if raw < 0 else TXT_POS))
         pdf.cell(50, 6, val, border=1, align="R", fill=True)
