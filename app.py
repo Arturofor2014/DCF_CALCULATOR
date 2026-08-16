@@ -220,6 +220,12 @@ def total_row_style(df, num_cols):
 def sum_by_year(section, n):
     return [sum(vals[i] for _, vals in section) for i in range(n)]
 
+def concept_total(section, name):
+    for concept, vals in section:
+        if concept == name:
+            return sum(vals)
+    return 0
+
 def render_fcf_row(label, year_vals, subtotal, scols):
     row = {"Concepto": label}
     row.update({scols[i]: year_vals[i] for i in range(len(scols))})
@@ -334,11 +340,30 @@ SCOLS = [str(y) for y in YEARS]
 N = len(YEARS)
 st.divider()
 
+equity_container  = st.container()
 metrics_container = st.container()
 st.divider()
 
 inflows  = render_section("INFLOWS",  "INFLOWS",  D["INFLOWS"],  SCOLS, selected)
 outflows = render_section("OUTFLOWS", "OUTFLOWS", D["OUTFLOWS"], SCOLS, selected)
+
+with equity_container:
+    st.markdown('<div class="section-hdr">ESTRUCTURA DE CAPITAL</div>', unsafe_allow_html=True)
+    capex_amount = abs(concept_total(outflows, "CAPEX"))
+
+    col_pct, col_equity, col_fin = st.columns([1, 1, 1])
+    with col_pct:
+        financing_pct = st.number_input(
+            "% Financiamiento", min_value=0.0, max_value=100.0,
+            value=70.0, step=5.0, format="%.1f", key="financing_pct",
+        )
+    equity_pct        = 100.0 - financing_pct
+    equity_amount     = capex_amount * equity_pct / 100.0
+    financing_amount  = capex_amount * financing_pct / 100.0
+    with col_equity:
+        st.markdown(kpi_card("EQUITY", fmt_usd(equity_amount), f"{equity_pct:.1f}% del CAPEX"), unsafe_allow_html=True)
+    with col_fin:
+        st.markdown(kpi_card("FINANCIAMIENTO", fmt_usd(financing_amount), f"{financing_pct:.1f}% del CAPEX", green=True), unsafe_allow_html=True)
 
 inflows_yr  = sum_by_year(inflows, N)
 outflows_yr = sum_by_year(outflows, N)
@@ -366,7 +391,6 @@ st.dataframe(
     column_config=col_cfg(SCOLS),
 )
 
-st.markdown('<div class="section-hdr">FCF SIN FINANCIAMIENTO</div>', unsafe_allow_html=True)
 render_fcf_row("FCF (Excluye Financiamiento)", fcf_no_fin, npv_no, SCOLS)
 
 financing    = render_section("FINANCING", "FINANCING", D["FINANCING"], SCOLS, selected)
@@ -374,7 +398,6 @@ financing_yr = sum_by_year(financing, N)
 fcf_with_fin = [fcf_no_fin[i] + financing_yr[i] for i in range(N)]
 npv_fin      = sum(fcf_with_fin)
 
-st.markdown('<div class="section-hdr">FCF CON FINANCIAMIENTO</div>', unsafe_allow_html=True)
 render_fcf_row("FCF (Incluye Financiamiento)", fcf_with_fin, npv_fin, SCOLS)
 
 def safe_irr(cf):
@@ -409,12 +432,6 @@ cash_on_cash  = npv_fin / equity_actual if equity_actual != 0 else None
 with metrics_container:
     st.markdown('<div class="section-hdr">INVESTMENT RETURNS — Métricas Clave</div>', unsafe_allow_html=True)
 
-    def concept_total(section, name):
-        for concept, vals in section:
-            if concept == name:
-                return sum(vals)
-        return 0
-
     PCT_KEYS  = {"CASH-ON-CASH", "IRR WITH FINANCING", "IRR SIN FINANCING",
                  "ROI", "ROE", "CAP RATE", "CAP RATE ANUAL"}
     MULT_KEYS = {"EQUITY MULTIPLE"}
@@ -440,7 +457,7 @@ with metrics_container:
         for i, (d, v) in enumerate(rows)
     )
 
-    col_table, col_irr, col_van = st.columns([2, 1, 1])
+    col_table, col_irr_no, col_irr_fin, col_van_no, col_van_fin = st.columns([2, 1, 1, 1, 1])
     with col_table:
         st.markdown(f"""
         <table style="width:100%;border-collapse:collapse;font-family:sans-serif;border:1px solid #ddd;overflow:hidden;margin-bottom:16px">
@@ -453,11 +470,16 @@ with metrics_container:
           <tbody>{body}</tbody>
         </table>
         """, unsafe_allow_html=True)
-    with col_irr:
-        irr_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
-        st.markdown(kpi_card("IRR", irr_label, "Con financiamiento"), unsafe_allow_html=True)
-    with col_van:
-        st.markdown(kpi_card("VAN", fmt_usd(van_fin), f"Con financiamiento · {discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
+    with col_irr_no:
+        irr_no_label = f"{irr_no*100:.2f}%" if irr_no is not None else "—"
+        st.markdown(kpi_card("TIR Sin Financiamiento", irr_no_label), unsafe_allow_html=True)
+    with col_irr_fin:
+        irr_fin_label = f"{irr_fin*100:.2f}%" if irr_fin is not None else "—"
+        st.markdown(kpi_card("TIR Con Financiamiento", irr_fin_label), unsafe_allow_html=True)
+    with col_van_no:
+        st.markdown(kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%"), unsafe_allow_html=True)
+    with col_van_fin:
+        st.markdown(kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True), unsafe_allow_html=True)
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
