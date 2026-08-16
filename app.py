@@ -424,18 +424,17 @@ van_fin = safe_npv(discount_rate, fcf_with_fin)
 def safe_cagr(vals):
     # Tasa de crecimiento anual compuesta, calculada sobre los mismos
     # valores anuales que la fila TOTAL INFLOWS de la tabla de totales.
-    # Si los primeros años no tienen ingresos (ej. año de construcción),
-    # se ignoran y el CAGR se calcula desde el primer año con Revenue > 0
-    # hasta el último año.
+    # Usa el primer y el último año con Revenue > 0 (ignora años en $0 al
+    # inicio -por construcción- o al final -tras cerrar/vender el proyecto-).
     nonzero = [i for i, v in enumerate(vals) if v > 0]
-    if not nonzero or vals[-1] < 0:
+    if len(nonzero) < 2:
         return None
-    start_i = nonzero[0]
-    years_span = len(vals) - 1 - start_i
+    start_i, end_i = nonzero[0], nonzero[-1]
+    years_span = end_i - start_i
     if years_span <= 0:
         return None
     try:
-        return (vals[-1] / vals[start_i]) ** (1 / years_span) - 1
+        return (vals[end_i] / vals[start_i]) ** (1 / years_span) - 1
     except Exception:
         return None
 
