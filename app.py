@@ -421,6 +421,17 @@ def safe_npv(rate, cf):
 van_no  = safe_npv(discount_rate, fcf_no_fin)
 van_fin = safe_npv(discount_rate, fcf_with_fin)
 
+def safe_cagr(vals):
+    # Tasa de crecimiento anual compuesta, calculada sobre los mismos
+    # valores anuales que la fila TOTAL INFLOWS de la tabla de totales.
+    n = len(vals)
+    if n < 2 or vals[0] <= 0 or vals[-1] < 0:
+        return None
+    try:
+        return (vals[-1] / vals[0]) ** (1 / (n - 1)) - 1
+    except Exception:
+        return None
+
 noi_last   = inflows_yr[-1] + outflows_yr[-1]
 sales_last = inflows_yr[-1]
 cap_rate   = noi_last / sales_last if sales_last != 0 else 0
@@ -435,9 +446,11 @@ with metrics_container:
     opex_total         = abs(concept_total(outflows, "OPEX"))
     net_cash_generated = npv_fin
     roi                = (net_cash_generated / equity_amount * 100) if equity_amount else None
+    revenue_cagr       = safe_cagr(inflows_yr)
 
     rows = [
         ("SALES",                        sales_total,   fmt_usd(sales_total)),
+        ("Revenue CAGR",                 revenue_cagr,  f"{revenue_cagr*100:+.2f}% / año" if revenue_cagr is not None else "—"),
         ("CAPEX",                        capex_amount,  fmt_usd(capex_amount)),
         ("OPEX",                         opex_total,    fmt_usd(opex_total)),
         ("NET CASH GENERATED",           net_cash_generated, fmt_usd(net_cash_generated)),
