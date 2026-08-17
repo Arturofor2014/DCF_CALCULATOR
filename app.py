@@ -572,7 +572,7 @@ with metrics_container:
     col_table, col_kpis = st.columns([2, 2])
     with col_table:
         st.markdown(f"""
-        <div style="background:#ECFDF5;border-radius:12px;padding:16px;">
+        <div style="background:#ECFDF5;border-radius:12px;padding:16px;height:520px;box-sizing:border-box;">
         <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;">
             {kpi_card("SALES", fmt_usd(sales_total))}
             {kpi_card("CAGR Revenue", cagr_label, "Crecimiento anual compuesto (todo el período)")}
@@ -586,7 +586,7 @@ with metrics_container:
         """, unsafe_allow_html=True)
     with col_kpis:
         st.markdown(f"""
-        <div style="background:#EFF6FF;border-radius:12px;padding:16px;">
+        <div style="background:#EFF6FF;border-radius:12px;padding:16px;height:520px;box-sizing:border-box;">
         <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;">
             {kpi_card("TIR Sin Financiamiento", irr_no_label)}
             {kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%")}
