@@ -186,11 +186,19 @@ SEC_DEFAULT_SG = {
 }
 
 def kpi_card(label, value, sub="", green=False):
-    # fmt_usd()/fmt_pct() envuelven los negativos entre paréntesis; si el
-    # valor viene así, se pinta en rojo sin importar el color base de la tarjeta.
-    is_negative = isinstance(value, str) and value.strip().startswith("(") and value.strip().endswith(")")
+    # fmt_usd()/fmt_pct() envuelven los negativos entre paréntesis: rojo.
+    # Los valores positivos van en azul. "—" (sin dato) se deja neutro.
+    val_str = value.strip() if isinstance(value, str) else str(value)
+    is_negative = val_str.startswith("(") and val_str.endswith(")")
+    is_empty    = val_str in ("—", "-")
+    if is_negative:
+        color = "#DC2626"
+    elif is_empty:
+        color = None
+    else:
+        color = "#1D4ED8"
     cls = "kpi-val-green" if green else "kpi-val"
-    style = ' style="color:#DC2626"' if is_negative else ""
+    style = f' style="color:{color}"' if color else ""
     return (f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
             f'<div class="{cls}"{style}>{value}</div><div class="kpi-sub">{sub}</div></div>')
 
@@ -379,7 +387,9 @@ with equity_container:
     equity_amount        = total_project_cost * equity_pct / 100.0
     financing_amount     = total_project_cost * financing_pct / 100.0
 
-    col_total, col_equity, col_fin = st.columns([1, 1, 1])
+    col_preopex_kpi, col_total, col_equity, col_fin = st.columns([1, 1, 1, 1])
+    with col_preopex_kpi:
+        st.markdown(kpi_card("PreOpex (Capital Operativo Pre-apertura)", fmt_usd(preopex_amount)), unsafe_allow_html=True)
     with col_total:
         st.markdown(kpi_card("Costo Total del Proyecto", fmt_usd(total_project_cost), "CAPEX + PreOpex"), unsafe_allow_html=True)
     with col_equity:
