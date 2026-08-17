@@ -521,7 +521,7 @@ with metrics_container:
         </div>
         """, unsafe_allow_html=True)
     with col_divider:
-        st.markdown('<div style="width:1px;background:#D1D5DB;height:360px;margin:0 auto;"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="width:1px;background:#D1D5DB;height:490px;margin:0 auto;"></div>', unsafe_allow_html=True)
     with col_kpis:
         st.markdown(f"""
         <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;">
