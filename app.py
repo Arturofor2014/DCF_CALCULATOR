@@ -344,12 +344,14 @@ st.markdown('<div class="page-title">Modelo dinámico de valoración y análisis
 st.markdown('<div class="page-sub">Selecciona un proyecto · edita las celdas · los resultados se recalculan automáticamente</div>', unsafe_allow_html=True)
 
 projects = get_projects()
-selected = st.selectbox("Proyecto", projects, key="project_selector")
-
-# El input real de la Tasa de Descuento (WACC) se muestra más abajo, debajo
-# de VAN Con Financiamiento. Aquí solo leemos su valor actual (persistido en
-# session_state) para poder calcular VAN/TIR antes de llegar a ese punto.
-discount_rate_pct = st.session_state.get("discount_rate", 10.0)
+col_sel, col_rate = st.columns([3, 2])
+with col_sel:
+    selected = st.selectbox("Proyecto", projects, key="project_selector")
+with col_rate:
+    discount_rate_pct = st.number_input(
+        "Tasa de Descuento (%) WACC", min_value=0.0, max_value=100.0,
+        value=10.0, step=0.5, format="%.2f", key="discount_rate",
+    )
 discount_rate = discount_rate_pct / 100.0
 
 D, YEARS = load_defaults(selected)
@@ -529,17 +531,9 @@ with metrics_container:
             {kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%")}
             {kpi_card("TIR Con Financiamiento", irr_fin_label)}
             {kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True)}
+            {kpi_card("ROI", roi_label)}
         </div>
         """, unsafe_allow_html=True)
-
-        row_roi, row_wacc = st.columns(2)
-        with row_roi:
-            st.markdown(kpi_card("ROI", roi_label), unsafe_allow_html=True)
-        with row_wacc:
-            discount_rate_pct = st.number_input(
-                "Tasa de Descuento (%) WACC", min_value=0.0, max_value=100.0,
-                value=discount_rate_pct, step=0.5, format="%.2f", key="discount_rate",
-            )
 
 st.divider()
 st.markdown('<div class="section-hdr">DESCARGAR REPORTE</div>', unsafe_allow_html=True)
