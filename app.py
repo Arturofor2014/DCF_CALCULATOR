@@ -186,9 +186,13 @@ SEC_DEFAULT_SG = {
 }
 
 def kpi_card(label, value, sub="", green=False):
+    # fmt_usd()/fmt_pct() envuelven los negativos entre paréntesis; si el
+    # valor viene así, se pinta en rojo sin importar el color base de la tarjeta.
+    is_negative = isinstance(value, str) and value.strip().startswith("(") and value.strip().endswith(")")
     cls = "kpi-val-green" if green else "kpi-val"
+    style = ' style="color:#DC2626"' if is_negative else ""
     return (f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
-            f'<div class="{cls}">{value}</div><div class="kpi-sub">{sub}</div></div>')
+            f'<div class="{cls}"{style}>{value}</div><div class="kpi-sub">{sub}</div></div>')
 
 # Ancho de columna para "Concepto" y para columnas numéricas (años / SUBTOTAL)
 _CONCEPT_W = CONCEPT_COL_WIDTH if TABLES_USE_FIXED_WIDTH else "medium"
@@ -358,19 +362,30 @@ with equity_container:
     st.markdown('<div class="section-hdr">ESTRUCTURA DE CAPITAL</div>', unsafe_allow_html=True)
     capex_amount = abs(concept_total(outflows, "CAPEX"))
 
-    col_pct, col_equity, col_fin = st.columns([1, 1, 1])
+    col_preopex, col_pct = st.columns([1, 1])
+    with col_preopex:
+        preopex_amount = st.number_input(
+            "PreOpex (Capital Operativo Pre-apertura)", min_value=0.0,
+            value=0.0, step=1000.0, format="%.0f", key="preopex_amount",
+        )
     with col_pct:
         financing_pct = st.number_input(
             "% Financiamiento", min_value=0.0, max_value=100.0,
             value=70.0, step=5.0, format="%.1f", key="financing_pct",
         )
-    equity_pct        = 100.0 - financing_pct
-    equity_amount     = capex_amount * equity_pct / 100.0
-    financing_amount  = capex_amount * financing_pct / 100.0
+
+    total_project_cost = capex_amount + preopex_amount
+    equity_pct          = 100.0 - financing_pct
+    equity_amount        = total_project_cost * equity_pct / 100.0
+    financing_amount     = total_project_cost * financing_pct / 100.0
+
+    col_total, col_equity, col_fin = st.columns([1, 1, 1])
+    with col_total:
+        st.markdown(kpi_card("Costo Total del Proyecto", fmt_usd(total_project_cost), "CAPEX + PreOpex"), unsafe_allow_html=True)
     with col_equity:
-        st.markdown(kpi_card("EQUITY", fmt_usd(equity_amount), f"{equity_pct:.1f}% del CAPEX"), unsafe_allow_html=True)
+        st.markdown(kpi_card("EQUITY", fmt_usd(equity_amount), f"{equity_pct:.1f}% del Costo Total"), unsafe_allow_html=True)
     with col_fin:
-        st.markdown(kpi_card("FINANCIAMIENTO", fmt_usd(financing_amount), f"{financing_pct:.1f}% del CAPEX", green=True), unsafe_allow_html=True)
+        st.markdown(kpi_card("FINANCIAMIENTO", fmt_usd(financing_amount), f"{financing_pct:.1f}% del Costo Total", green=True), unsafe_allow_html=True)
 
 inflows_yr  = sum_by_year(inflows, N)
 outflows_yr = sum_by_year(outflows, N)
