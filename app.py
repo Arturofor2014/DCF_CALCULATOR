@@ -442,6 +442,66 @@ npv_fin      = sum(fcf_with_fin)
 
 render_fcf_row("FCF (Incluye Financiamiento)", fcf_with_fin, npv_fin, SCOLS)
 
+# ===== AMORTIZACIÓN DE PRÉSTAMO (Método Francés) =====
+# Calculadora independiente de referencia: no se conecta al FCF/TIR/VAN ni a
+# la sección FINANCING. Cuota constante, capital creciente e interés
+# decreciente período a período.
+st.divider()
+st.markdown('<div class="section-hdr">AMORTIZACIÓN DE PRÉSTAMO (Método Francés)</div>', unsafe_allow_html=True)
+
+col_loan_amt, col_loan_rate, col_loan_periods = st.columns(3)
+with col_loan_amt:
+    loan_amount = st.number_input(
+        "Monto del Préstamo", min_value=0.0, value=0.0, step=10000.0,
+        format="%.0f", key="loan_amount",
+    )
+with col_loan_rate:
+    loan_rate_pct = st.number_input(
+        "Tasa de Interés Anual (%)", min_value=0.0, max_value=100.0,
+        value=10.0, step=0.5, format="%.2f", key="loan_rate_pct",
+    )
+with col_loan_periods:
+    loan_periods = st.number_input(
+        "Número de Amortizaciones (años)", min_value=1, max_value=N,
+        value=N, step=1, key="loan_periods",
+    )
+
+loan_rate    = loan_rate_pct / 100.0
+loan_periods = int(loan_periods)
+
+def french_amortization(principal, rate, periods):
+    if periods <= 0 or principal <= 0:
+        return [0.0] * periods, [0.0] * periods, [0.0] * periods
+    cuota = principal / periods if rate == 0 else principal * rate / (1 - (1 + rate) ** -periods)
+    balance = principal
+    capital_l, interest_l, cuota_l = [], [], []
+    for _ in range(periods):
+        interest = balance * rate
+        capital  = cuota - interest
+        balance -= capital
+        capital_l.append(capital)
+        interest_l.append(interest)
+        cuota_l.append(capital + interest)
+    return capital_l, interest_l, cuota_l
+
+capital_yr, interest_yr, cuota_yr = french_amortization(loan_amount, loan_rate, loan_periods)
+loan_scols = [f"L{i + 1}" for i in range(loan_periods)]
+
+amort_df = pd.DataFrame([
+    {"Concepto": "Capital",           **{loan_scols[i]: capital_yr[i]  for i in range(loan_periods)}, "SUBTOTAL": sum(capital_yr)},
+    {"Concepto": "Interés",           **{loan_scols[i]: interest_yr[i] for i in range(loan_periods)}, "SUBTOTAL": sum(interest_yr)},
+    {"Concepto": "Capital + Interés", **{loan_scols[i]: cuota_yr[i]    for i in range(loan_periods)}, "SUBTOTAL": sum(cuota_yr)},
+])
+st.dataframe(
+    amort_df.style.apply(_row_style_fn, axis=1).format(
+        lambda x: "-" if x == 0 else (f"({abs(x):,.0f})" if x < 0 else f"${x:,.0f}"),
+        subset=loan_scols + ["SUBTOTAL"],
+    ),
+    use_container_width=TABLES_USE_CONTAINER_WIDTH,
+    hide_index=True,
+    column_config=col_cfg(loan_scols),
+)
+
 def safe_irr(cf):
     try:
         v = npf.irr(cf)
