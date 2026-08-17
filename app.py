@@ -349,7 +349,7 @@ with col_sel:
     selected = st.selectbox("Proyecto", projects, key="project_selector")
 with col_rate:
     discount_rate_pct = st.number_input(
-        "Tasa de Descuento (%)", min_value=0.0, max_value=100.0,
+        "Tasa de Descuento (%) WACC", min_value=0.0, max_value=100.0,
         value=10.0, step=0.5, format="%.2f", key="discount_rate",
     )
 discount_rate = discount_rate_pct / 100.0
@@ -402,15 +402,15 @@ with equity_container:
     equity_amount        = total_project_cost * equity_pct / 100.0
     financing_amount     = total_project_cost * financing_pct / 100.0
 
-    col_preopex_kpi, col_total, col_equity, col_fin = st.columns([1, 1, 1, 1])
-    with col_preopex_kpi:
-        st.markdown(kpi_card("PreOpex (Capital Operativo Pre-apertura)", fmt_usd(preopex_amount)), unsafe_allow_html=True)
+    col_total, col_equity, col_fin, col_preopex_kpi = st.columns([1, 1, 1, 1])
     with col_total:
         st.markdown(kpi_card("Costo Total del Proyecto", fmt_usd(total_project_cost), "CAPEX + PreOpex"), unsafe_allow_html=True)
     with col_equity:
         st.markdown(kpi_card("EQUITY", fmt_usd(equity_amount), f"{equity_pct:.1f}% del Costo Total"), unsafe_allow_html=True)
     with col_fin:
         st.markdown(kpi_card("FINANCIAMIENTO", fmt_usd(financing_amount), f"{financing_pct:.1f}% del Costo Total", green=True), unsafe_allow_html=True)
+    with col_preopex_kpi:
+        st.markdown(kpi_card("PreOpex (Capital Operativo Pre-apertura)", fmt_usd(preopex_amount)), unsafe_allow_html=True)
 
 inflows_yr  = sum_by_year(inflows, N)
 outflows_yr = sum_by_year(outflows, N)
@@ -517,9 +517,9 @@ with metrics_container:
             {kpi_card("CAGR Revenue", cagr_label, "Crecimiento anual compuesto (todo el período)")}
             {kpi_card("CAPEX", fmt_usd(capex_amount))}
             {kpi_card("OPEX", fmt_usd(opex_total))}
-            {kpi_card("NET CASH GENERATED", fmt_usd(net_cash_generated))}
-            {kpi_card("EBITDA", fmt_usd(ebitda_total), "Revenue - OPEX")}
             {kpi_card("EBIT", fmt_usd(ebit_total), "EBITDA - Depreciación")}
+            {kpi_card("EBITDA", fmt_usd(ebitda_total), "Revenue - OPEX")}
+            {kpi_card("NET CASH GENERATED", fmt_usd(net_cash_generated))}
         </div>
         """, unsafe_allow_html=True)
     with col_divider:
