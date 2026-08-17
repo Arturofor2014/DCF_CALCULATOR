@@ -366,9 +366,24 @@ st.divider()
 inflows  = render_section("INFLOWS",  "INFLOWS",  D["INFLOWS"],  SCOLS, selected)
 outflows = render_section("OUTFLOWS", "OUTFLOWS", D["OUTFLOWS"], SCOLS, selected)
 
+capex_amount = abs(concept_total(outflows, "CAPEX"))
+
+# Depreciación lineal del CAPEX, según la vida útil del activo. Es un gasto
+# contable (no representa una salida de caja): no se suma a OUTFLOWS ni
+# afecta FCF/TIR/VAN. Solo se usa para calcular EBITDA/EBIT más abajo.
+st.markdown('<div class="section-hdr">DEPRECIACIÓN</div>', unsafe_allow_html=True)
+useful_life_years = st.number_input(
+    "Vida Útil del Activo (años)", min_value=1, max_value=50,
+    value=10, step=1, key="useful_life_years",
+)
+dep_years          = min(int(useful_life_years), N)
+annual_dep         = capex_amount / useful_life_years if useful_life_years else 0.0
+depreciation_yr    = [annual_dep if i < dep_years else 0.0 for i in range(N)]
+depreciation_total = sum(depreciation_yr)
+render_fcf_row("Depreciación Lineal (CAPEX / Vida Útil)", depreciation_yr, depreciation_total, SCOLS)
+
 with equity_container:
     st.markdown('<div class="section-hdr">ESTRUCTURA DE CAPITAL</div>', unsafe_allow_html=True)
-    capex_amount = abs(concept_total(outflows, "CAPEX"))
 
     col_preopex, col_pct = st.columns([1, 1])
     with col_preopex:
@@ -482,6 +497,9 @@ with metrics_container:
     roi                = (net_cash_generated / equity_amount * 100) if equity_amount else None
     revenue_cagr       = safe_cagr(inflows_yr)
 
+    ebitda_total = sales_total - opex_total
+    ebit_total   = ebitda_total - depreciation_total
+
     roi_label  = fmt_pct(roi)
     cagr_label = fmt_pct(revenue_cagr * 100 if revenue_cagr is not None else None)
 
@@ -500,6 +518,8 @@ with metrics_container:
             {kpi_card("CAPEX", fmt_usd(capex_amount))}
             {kpi_card("OPEX", fmt_usd(opex_total))}
             {kpi_card("NET CASH GENERATED", fmt_usd(net_cash_generated))}
+            {kpi_card("EBITDA", fmt_usd(ebitda_total), "Revenue - OPEX")}
+            {kpi_card("EBIT", fmt_usd(ebit_total), "EBITDA - Depreciación")}
         </div>
         """, unsafe_allow_html=True)
     with col_divider:
@@ -612,6 +632,11 @@ def build_excel():
         write_sec("INFLOWS",  inflows,  total=("TOTAL INFLOWS",  inflows_yr))
         write_sec("OUTFLOWS", outflows, total=("TOTAL OUTFLOWS", outflows_yr))
 
+        # Depreciación: gasto contable (no es salida de caja), no se suma a
+        # OUTFLOWS ni al FCF; se muestra aparte y solo alimenta el EBIT.
+        write_total_row("DEPRECIACIÓN (Lineal)", depreciation_yr)
+        rn += 1
+
         # Línea independiente FCF Project (Inflow - Outflow), separada de las
         # secciones vecinas por filas en blanco.
         write_total_row("FCF PROJECT", fcf_no_fin)
@@ -633,6 +658,9 @@ def build_excel():
             ("IRR Con Financiamiento", irr_fin or 0, True),
             ("NPV Sin Financiamiento", van_no  or 0, False),
             ("NPV Con Financiamiento", van_fin or 0, False),
+            ("EBITDA",                 ebitda_total,       False),
+            ("Depreciación",           depreciation_total, False),
+            ("EBIT",                   ebit_total,         False),
         ]:
             val_color = CLR_NEG if val < 0 else CLR_POS
             ws.write(rn, 0, label, get_lbl_fmt(BG_SUB, CLR_POS, bold=True))
@@ -722,6 +750,8 @@ def build_pdf():
     draw_sec_title("OUTFLOWS")
     for lbl, vals in outflows: draw_row(lbl, vals)
     draw_fcf("TOTAL OUTFLOWS", outflows_yr, sum(outflows_yr))
+    pdf.ln(2)
+    draw_fcf("DEPRECIACIÓN (Lineal)", depreciation_yr, depreciation_total)
     pdf.ln(4)
     draw_fcf("FCF PROJECT", fcf_no_fin, npv_no)
     pdf.ln(4)
@@ -742,6 +772,9 @@ def build_pdf():
         ("IRR Con Financiamiento", fmt_pct(irr_fin * 100 if irr_fin is not None else None, none_str="-"), irr_fin or 0),
         ("NPV Sin Financiamiento", fmt_usd(van_no).replace("—", "-"),  van_no  or 0),
         ("NPV Con Financiamiento", fmt_usd(van_fin).replace("—", "-"), van_fin or 0),
+        ("EBITDA",                 fmt_usd(ebitda_total).replace("—", "-"),       ebitda_total),
+        ("Depreciación",           fmt_usd(depreciation_total).replace("—", "-"), depreciation_total),
+        ("EBIT",                   fmt_usd(ebit_total).replace("—", "-"),         ebit_total),
     ]:
         pdf.set_fill_color(*SUB); pdf.set_font("Helvetica", "B", 7)
         pdf.set_text_color(*TXT_POS)
