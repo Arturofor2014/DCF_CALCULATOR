@@ -569,9 +569,10 @@ with metrics_container:
     # Grid CSS explícito (en vez de filas independientes de st.columns) para
     # garantizar que cada tarjeta quede exactamente debajo de la de arriba,
     # sin desalinearse por tarjetas de distinta altura (p. ej. subtítulos largos).
-    col_table, col_divider, col_kpis = st.columns([2, 0.05, 2])
+    col_table, col_kpis = st.columns([2, 2])
     with col_table:
         st.markdown(f"""
+        <div style="background:#ECFDF5;border-radius:12px;padding:16px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;">
             {kpi_card("SALES", fmt_usd(sales_total))}
             {kpi_card("CAGR Revenue", cagr_label, "Crecimiento anual compuesto (todo el período)")}
@@ -581,17 +582,18 @@ with metrics_container:
             {kpi_card("EBITDA", fmt_usd(ebitda_total), "Revenue - OPEX")}
             {kpi_card("NET CASH GENERATED", fmt_usd(net_cash_generated))}
         </div>
+        </div>
         """, unsafe_allow_html=True)
-    with col_divider:
-        st.markdown('<div style="width:1px;background:#D1D5DB;height:490px;margin:0 auto;"></div>', unsafe_allow_html=True)
     with col_kpis:
         st.markdown(f"""
+        <div style="background:#EFF6FF;border-radius:12px;padding:16px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:12px;">
             {kpi_card("TIR Sin Financiamiento", irr_no_label)}
             {kpi_card("VAN Sin Financiamiento", fmt_usd(van_no), f"{discount_rate_pct:.1f}%")}
             {kpi_card("TIR Con Financiamiento", irr_fin_label)}
             {kpi_card("VAN Con Financiamiento", fmt_usd(van_fin), f"{discount_rate_pct:.1f}%", green=True)}
             {kpi_card("ROI", roi_label)}
+        </div>
         </div>
         """, unsafe_allow_html=True)
 
